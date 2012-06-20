@@ -10,6 +10,10 @@ from ModelExtractor import *
 
 MAX_STACK_SIZE = 100
 
+#############################################
+# Class declarations
+#############################################
+
 class ReorderingModel:
     def __init__(self):
         pass
@@ -26,9 +30,6 @@ class TranslationModel:
             'trans-0': 0.1,
             'trans-1': 0.5,
         }
-
-TM = TranslationModel()
-RM = ReorderingModel()
 
 class Hypothesis:
     def __init__(self, hyp, trans_opt):
@@ -80,6 +81,38 @@ class TranslationOption:
         self.score = score
 
 
+#############################################
+# Model processing
+#############################################
+
+LM = SRILangModel()
+TM = TranslationModel()
+RM = ReorderingModel()
+
+#read language model file
+LM.read_lm_file("source_files/all.lm")
+
+#find the score (log10)
+# output_lm = LM.get_language_model_prob("accommodated")
+# print output_lm
+
+#translation model
+english_file = "source_files/all.lowercased.raw.en"
+foreign_file = "source_files/all.lowercased.raw.fr"
+alignment_file = "source_files/aligned.grow-diag-final-and"
+
+#run the translation model
+# tm = TranslationModel(english_file, foreign_file, alignment_file)
+# tm.extract()
+
+#find list of translations
+# output_tm = tm.get_translation_model_prob("en")
+
+# #find the score (log10) sort by highest score
+# for key, value in sorted(output_tm.iteritems(), key=lambda (k,v): (v,k), reverse=True):
+#     print key, value
+
+
 #def get_all_phrases(sentence):
 #    if len(sentence) == 1:
 #        yield [sentence]
@@ -90,6 +123,10 @@ class TranslationOption:
 #            pre = [sentence[:i]]
 #            for phrase in get_all_phrases(sentence[i:]):
 #                yield pre + phrase
+
+#############################################
+# Utility functions
+#############################################
 
 def get_all_phrases(sentence):
     for i in range(len(sentence)):
@@ -192,7 +229,7 @@ def get_future_cost(n_words):
             end = start + length
 
             #initialise the cost from start->end to be infinity
-            start_to_end_cost = self.get_cost(start, end, INFINITY)
+            start_to_end_cost = get_cost(start, end, INFINITY)
 
             # If a translation option for a cost estimate exists
             if trans_opt_cost_estimate:
@@ -242,7 +279,7 @@ def pruning_threshold(alpha, stack):
     Output: A pruned stack
 
     """
-    num_words = NUMBER_OF_WORDS(self.sentence)
+    num_words = len(stack.hypotheses)
     scores = []
 
     # Find the highest scoring hypothesis in the stack
