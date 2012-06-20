@@ -4,16 +4,16 @@ from ModelExtractor import *
 lm = SRILangModel()
 
 #read language model file
-lm.read_lm_file("../source_files/all.lm")
+lm.read_lm_file("source_files/all.lm")
 
 #find the score (log10)
 output_lm = lm.get_language_model_prob("accommodated")
 print output_lm
 
 #translation model
-english_file = "../source_files/all.lowercased.raw.en"
-foreign_file = "../source_files/all.lowercased.raw.fr"
-alignment_file = "../source_files/aligned.grow-diag-final-and"
+english_file = "source_files/all.lowercased.raw.en"
+foreign_file = "source_files/all.lowercased.raw.fr"
+alignment_file = "source_files/aligned.grow-diag-final-and"
 
 #run the translation model
 tm = TranslationModel(english_file, foreign_file, alignment_file)

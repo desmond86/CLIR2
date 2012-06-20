@@ -1,3 +1,9 @@
+# Authors: 
+# Hai Dong Leong <[login]>
+# Desmond Putra <[login]>
+# Andrew Vadnal <avadnal>
+
+
 from __future__ import division
 from collections import defaultdict
 from math import log10

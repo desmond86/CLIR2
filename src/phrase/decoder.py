@@ -1,6 +1,12 @@
+# Authors: 
+# Hai Dong Leong () <[login]>
+# Desmond Putra () <[login]>
+# Andrew Vadnal (326558) <avadnal>
+
 from __future__ import division
 from pprint import pprint
-import sys
+from sys import maxint as INFINITY
+from ModelExtractor import *
 
 MAX_STACK_SIZE = 100
 
@@ -157,6 +163,111 @@ def recombine(stacks):
 
 def prune(stacks):
     pass
+
+# Base pruning score on future cost (need to estimate) too
+# Gets added to partial probability score
+# Future cost ignores reordering model 
+
+# The cheapest cost estimate for a span is either the cheapest cost for a 
+# translation option or the cheapest sum of costs for a pair of spans that cover
+# it completely
+
+# Take into account translation model and language model probabilities
+# Set the cost required to process from start to end. Val can be used to set cost to infinity
+def get_cost(start, end, val=None):
+    
+    if val is not None:
+        the_cost = val
+
+    # need to get this stuff from the language model
+    else:
+        the_cost = translation_prob(start) + translation_prob(end)
+
+    return the_cost
+
+# Based on current costs, we want to estimate the future costs
+def get_future_cost(n_words):
+    for length in range(1, n):
+        for start in range(1, n_words+1-length):
+            end = start + length
+
+            #initialise the cost from start->end to be infinity
+            start_to_end_cost = self.get_cost(start, end, INFINITY)
+
+            # If a translation option for a cost estimate exists
+            if trans_opt_cost_estimate:
+                start_to_end_cost = cost_estimate
+
+            for i in range(start, end-1):
+                partial_cost = get_cost(start, i) + get_cost(i+1, end)
+                if partial_cost < get_cost(start_end):
+                    start_to_end_cost = partial_cost
+
+    return start_to_end_cost
+
+def pruning_histogram(stack, pruning_limit):
+    """
+    Keep a maximum of n hypotheses in the stack
+    Number of hypothesis expansions =
+        Max stack size * number of translation options * length input sent
+
+    Advantage: Improvement from exponential cost
+    Disadvantage: Not the best translation according to the Model
+
+    Use this to demonstrate a less optimal way of pruning
+
+    Input: stack - A stack of hypotheses
+    Input: pruning_limit - A limit of how many hypotheses to prune
+    Output: A pruned stack
+
+    """
+    # Check the stack size
+    if len(stack) > MAX_STACK_SIZE:
+
+        # Remove the specified amount of hypotheses from the stack and return stack
+        [stack.pop(0) for i in range(pruning_limit)]
+        return stack
+    
+    # Just return the original stack as it does not need to be pruned    
+    else:
+        return stack
+
+def pruning_threshold(alpha, stack):
+    """
+    Check if a hypothesis score is 'alpha' times worse than the best score
+    If this is the case, prune it from the stack
+
+    Input: alpha - A threshold value
+    Input: stack - A stack of hypotheses
+    Output: A pruned stack
+
+    """
+    num_words = NUMBER_OF_WORDS(self.sentence)
+    scores = []
+
+    # Find the highest scoring hypothesis in the stack
+    for hyp in stack:
+
+        scores.append(hyp['score'])
+
+    best_score = max(scores)
+
+    # Prune the stack
+    for hyp in stack:
+
+        # Get the probability score of the hypothesis
+        prob_score = hyp['score']
+        
+        # Get the future cost of processing the next n hypotheses
+        future_cost = self.get_future_cost(num_words)
+
+        # If the score of a hypothesis is 'threshold' times worse than best, prune it
+        if best_score / (prob_score + future_cost) < alpha:  
+            stack.remove(hyp)
+
+    return stack
+
+
 
 input_sent = 'Uni of Melb'.split()
 
