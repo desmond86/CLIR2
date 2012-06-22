@@ -34,4 +34,10 @@ Hour 7-10. Been a while since I've worked on this project due to exams, just
 reading through notes and refreshing my mind on key topics, reading through
 the phrase paper once again, and re-understanding the code from the previous
 project.
+
+Hour 11-16. Met up with team. Figuring out why team members can't clone my github repo. Implementing the pseudo-code with Hai in
+the koehn-06 Decoding chapter pg 165, 170. Setting up an overall structure "decoder.py", so each member can contribute to filling in the 
+scaffolding - ie. the functions which have not yet been implemented. Spent time working on histogram and threshold pruning
+in addition to the section on determing future cost for any input span. Did not have access to model data (translation/language)
+while doing this, which was to be committed at the end of the day.
 '''
