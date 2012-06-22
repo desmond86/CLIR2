@@ -214,7 +214,7 @@ class TranslationModel:
         self.prob_fe, self.prob_ef = prob_fe, prob_ef
         return prob_fe, prob_ef
 
-    def get_translation_model_prob(self, word_f):
+    def get_translation_model_prob_f(self, word_f):
         my_dict = {}
 
         for word_e in self.prob_fe[word_f]:
@@ -222,6 +222,17 @@ class TranslationModel:
 
         #for key, value in sorted(mydict.iteritems(), key=lambda (k,v): (v,k), reverse=True):
         return my_dict
+
+    def get_translation_model_prob_e(self, word_e):
+        my_dict = {}
+
+        for word_f in self.prob_ef[word_e]:
+            my_dict[word_f] = self.prob_ef[word_e][word_f]
+
+        #for key, value in sorted(mydict.iteritems(), key=lambda (k,v): (v,k), reverse=True):
+        return my_dict
+
+
 
 
 
