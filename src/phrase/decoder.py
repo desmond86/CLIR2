@@ -1,5 +1,5 @@
 # Authors: 
-# Hai Dong Leong () <[login]>
+# Hai Dong Luong () <[hai-ld]>
 # Desmond Putra () <[login]>
 # Andrew Vadnal (326558) <avadnal>
 
@@ -7,6 +7,8 @@ from __future__ import division
 from pprint import pprint
 from sys import maxint as INFINITY
 from ModelExtractor import *
+
+import bisect
 
 MAX_STACK_SIZE = 100
 
@@ -33,15 +35,16 @@ class TranslationModel:
 
 class Hypothesis:
     def __init__(self, hyp, trans_opt):
-        self.prev = hyp
-        self.next = []
+        """Create a hypothesis expanding on another hypothesis by a translation option."""
+        #self.prev = hyp # pointer to previous hypothesis
+        #self.next = [] # pointers to next hypotheses
         if hyp is not None:
-            hyp.next.append(self)
+            #hyp.next.append(self)
             self.trans = {}
             self.trans['input'] = hyp.trans['input'] + [(trans_opt.i_start, trans_opt.i_end, trans_opt.input_phrase)]
             self.trans['output'] = hyp.trans['output'] + [trans_opt.output_phrase]
             self.trans['score'] = hyp.trans['score'] * trans_opt.score
-        else:
+        else: # create an empty hypothesis
             self.trans = {
                 'input': [],
                 'output': [],
@@ -52,28 +55,96 @@ class Hypothesis:
         l = 0
         for i in self.trans['input']:
             l += len(i[2])
-
         return l
+
+    def identical(self, other):
+        """Check whether this hypothesis is identical with another one.
+
+        Two hypotheses are identical when:
+        - They consume the same sequence of input. Ordering doesn't matter,
+        with the exception of the last word, i.e:
+            0, 2, 3, 1 == 2, 3, 0, 1;
+        This ensures they have the same set of possible expansions.
+        - The last input words' positions are identical, ensuring the same
+        reordering cost upon hypothesis expansion.
+        - The last output words are identical, ensuring that language model
+        scores are identical upon expansion.
+        """
+        this_i_sequence, other_i_sequence = [], []
+        for phrase in self.trans['input']:
+            this_i_sequence += range(phrase[0], phrase[1] + 1)
+        for phrase in other.trans['input']:
+            other_i_sequence += range(phrase[0], phrase[1] + 1)
+        this_i_sequence.sort()
+        other_i_sequence.sort()
+
+        return this_i_sequence == other_i_sequence and \
+                self.trans['input'][-1][1] == other.trans['input'][-1][1] and \
+                self.trans['output'][-1] == other.trans['output'][-1]
+    
+    def __lt__(self, other):
+        return self.trans['score'] < other.trans['score']
+
+    def __le__(self, other):
+        return self.trans['score'] <= other.trans['score']
+
+    def __gt__(self, other):
+        return not (self <= other)
+
+    def __ge__(self, other):
+        return not (self < other)
 
     def __str__(self):
         return str(self.trans)
 
+    def __repr__(self):
+        return str(self.__dict__)
+
 class Stack:
     def __init__(self, size):
+        """Create a stack of specified size."""
         self.size = size
-        self.hyps = []
+        self.hyps = [] # list of hypotheses in ascending order
 
     def add(self, hyp):
-        self.hyps.append(hyp)
+        """Add a hypothesis into the stack."""
+        #bisect.insort(self.hyps, hyp)
+        #return
+        identical_hyps = []
+        has_identical = False
+        for i, h in enumerate(self.hyps):
+            if h.identical(hyp):
+                has_identical = True
+                if h < hyp:
+                    identical_hyps.append(i)
+
+        if identical_hyps:
+            for i, j in enumerate(identical_hyps):
+                del self.hyps[j-i]
+
+        if identical_hyps or not has_identical:
+            bisect.insort(self.hyps, hyp)
+            return hyp
+        else:
+            return None
 
     def hypotheses(self):
+        """Get all hypotheses in the stack."""
         return self.hyps
 
     def best(self):
+        """Return the best hypotheses in the stack."""
         return self.hyps[-1]
 
 class TranslationOption:
     def __init__(self, i_start, i_end, input_phrase, output_phrase, score):
+        """Create a translation option.
+        i_start: start position of input phrase
+        i_end: end position of input phrase
+        input_phrase: input phase as a list of words
+        output_phrase: output phrase as a string
+        score: the score assigned to this translation
+        """
         self.i_start = i_start
         self.i_end = i_end
         self.input_phrase = input_phrase
@@ -112,37 +183,40 @@ alignment_file = "source_files/aligned.grow-diag-final-and"
 # for key, value in sorted(output_tm.iteritems(), key=lambda (k,v): (v,k), reverse=True):
 #     print key, value
 
-
-#def get_all_phrases(sentence):
-#    if len(sentence) == 1:
-#        yield [sentence]
-#    else:
-#        for i in range(1, len(sentence) + 1):
-#            if i == len(sentence):
-#                yield [sentence]
-#            pre = [sentence[:i]]
-#            for phrase in get_all_phrases(sentence[i:]):
-#                yield pre + phrase
-
 #############################################
 # Utility functions
 #############################################
 
 def get_all_phrases(sentence):
+    """Get all phrases in a sentence.
+    sentence: a sentence given as a list of words
+    """
     for i in range(len(sentence)):
         for j in range(i + 1, len(sentence) + 1):
             yield sentence[i:j]
 
 def get_trans_opts(input_sent, hyp):
-    untrans = get_untranslated_parts(input_sent, hyp)
-    possible_phrases = get_possible_phrases(untrans)
+    """Get all translation options a hypothesis could be expanded upon.
+    input_sent: input sentence given as a list of words
+    hyp: the hypothesis to be expanded
+    """
+    untrans = get_untranslated_words(input_sent, hyp)
 
-    for phrase in possible_phrases:
-        score = 1.0 #reordering_model(hyp.trans['input'][-1], phrase)
-        for translation in get_possible_translations(phrase):
-            yield translation
+    for part in get_consecutive_parts(untrans):
+        for phrase in get_all_phrases(part):
+            reordering_score = 1.0 #reordering_model(hyp.trans['input'][-1], phrase)
+            for translation in get_translations(phrase):
+                translation.score *= reordering_score
+                yield translation
 
-def get_untranslated_parts(input_sent, hyp):
+def get_untranslated_words(input_sent, hyp):
+    """Get words untranslated by a hypothesis.
+    input_sent: input sentence given as a list of words
+    hyp: a hypothesis translating the input sentence
+
+    Returns a list of tuples in which second elements are untranslated words
+    and first elements are positions of the words in input sentence.
+    """
     input_sent = dict(enumerate(input_sent))
     for i in hyp.trans['input']:
         for j in range(i[0], i[1] + 1):
@@ -150,7 +224,13 @@ def get_untranslated_parts(input_sent, hyp):
 
     return input_sent.items()
 
-def get_possible_phrases(input_sent):
+def get_consecutive_parts(input_sent):
+    """Get consecutive parts in a non-consecutive sentence.
+    input_sent: input sentence given as a list of tuples in which second elements are untranslated words
+    and first elements are positions of the words in input sentence.
+
+    Return a list of consecutive parts, each of which is a list of words
+    """
     consecutive_parts = []
     prev_idx = None
     part = []
@@ -165,18 +245,11 @@ def get_possible_phrases(input_sent):
                 part = [(idx, word)]
         prev_idx = idx
     consecutive_parts.append(part)
+    return consecutive_parts
 
-    for part in consecutive_parts:
-        for phrase in get_all_phrases(part):
-            yield phrase
-
-def get_possible_translations(phrase):
-    #print phrase
+def get_translations(phrase):
     for translation, score in TM.translate(phrase).iteritems():
         t = TranslationOption(phrase[0][0], phrase[-1][0], [p[1] for p in phrase], translation, score)
-#        print t.i_start, t.i_end
-#        print t.input_phrase
-#        print t.output_phrase
         yield t
 
 def get_possible_phrases_test():
@@ -333,3 +406,8 @@ best_hyp = last_stack.best()
 
 print best_hyp.trans['input']
 print best_hyp.trans['output']
+print best_hyp.trans['score']
+
+for stack in stacks:
+    print len(stack.hypotheses())
+    pprint(stack.hypotheses())
