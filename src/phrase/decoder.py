@@ -23,15 +23,15 @@ class ReorderingModel:
     def cost(self, prev_phrase, next_phrase):
         return 1.0
 
-class TranslationModel:
-    def __init__(self):
-        pass
-
-    def translate(self, phrase):
-        return {
-            'trans-0': 0.1,
-            'trans-1': 0.5,
-        }
+#class TranslationModel:
+#    def __init__(self):
+#        pass
+#
+#    def translate(self, phrase):
+#        return {
+#            'trans-0': 0.1,
+#            'trans-1': 0.5,
+#        }
 
 class Hypothesis:
     def __init__(self, hyp, trans_opt):
@@ -122,6 +122,8 @@ class Stack:
             for i, j in enumerate(identical_hyps):
                 del self.hyps[j-i]
 
+        if len(self.hyps) > MAX_STACK_SIZE:
+            del self.hyps[0]
         if identical_hyps or not has_identical:
             bisect.insort(self.hyps, hyp)
             return hyp
@@ -152,19 +154,28 @@ class TranslationOption:
         self.score = score
 
 
+# Base pruning score on future cost (need to estimate) too
+# Gets added to partial probability score
+# Future cost ignores reordering model 
+
+# The cheapest cost estimate for a span is either the cheapest cost for a 
+# translation option or the cheapest sum of costs for a pair of spans that cover
+# it completely
 #############################################
 # Model processing
 #############################################
 
-LM = SRILangModel()
-TM = TranslationModel()
-RM = ReorderingModel()
+# Take into account translation model and language model probabilities
+# Set the cost required to process from start to end. Val can be used to set cost to infinity
+lm = SRILangModel()
+#tm = TranslationModel()
+rm = ReorderingModel()
 
 #read language model file
-LM.read_lm_file("source_files/all.lm")
+lm.read_lm_file("source_files/all.lm")
 
 #find the score (log10)
-# output_lm = LM.get_language_model_prob("accommodated")
+# output_lm = lm.get_language_model_prob("accommodated")
 # print output_lm
 
 #translation model
@@ -173,9 +184,97 @@ foreign_file = "source_files/all.lowercased.raw.fr"
 alignment_file = "source_files/aligned.grow-diag-final-and"
 
 #run the translation model
-# tm = TranslationModel(english_file, foreign_file, alignment_file)
-# tm.extract()
+tm = TranslationModel(english_file, foreign_file, alignment_file)
+tm.extract()
 
+# a sentence is one or more words (list)
+def get_tm_info(sent):
+
+    if isinstance(sent, list):
+        s = ' '.join(sent)
+    
+    # just in case a string is passed in by 'accident'
+    else:
+        s = sent
+    
+    # else:
+    #     return tm.get_translation_model_prob_e(sent)
+    tm_dict = tm.get_translation_model_prob_e(s)
+    sorted_list = sorted(tm_dict.iteritems(), key=lambda (k,v): (v,k), reverse=True)
+    
+    # sorted_list[0] = best scoring (entry, prob) - first entry in sorted trans prob table
+    # sorted_list[-1] = worst scoring (entry, prob) - last entry in sorted trans prob table
+    # get the best cost
+
+    if sorted_list != []:
+        best_score = float(sorted_list[0][1])
+
+    else:
+        best_score = None
+    
+    return tm_dict, best_score
+
+# a sentence is one or more words (list)
+def get_lm_cost(sent):
+    if isinstance(sent, list):
+        s = ' '.join(sent)
+
+    # just in case a string is passed in by 'accident'
+    else:
+        s = sent
+    return lm.get_language_model_prob(s)
+
+# Based on current costs, we want to estimate the future costs
+def get_future_cost_table(sent):
+
+    fc_table = defaultdict(lambda: defaultdict(float))
+
+    for length in range(1,len(sent)+1):
+        for start in range(0, len(sent)+1-length):
+            end = start + length
+            key1 = ' '.join(sent[start:end])
+            # print "---------\n"
+            
+            trans_prob, best_score = get_tm_info(key1)# = tm.get_translation_model_prob_e(key1)
+
+            if best_score is not None:
+                print "BEST SCORE = %f\n" %(best_score)
+                fc_table[start][end] = -INFINITY #default value
+                
+                if key1:
+
+                    fc_table[start][end] = best_score
+
+                for i in range(start, end-1):
+
+                    #check whether there is direct path from start to end in the translation model
+                    if key1 in trans_prob.iterkeys():
+                        if (fc_table[start][i+1] + fc_table[i+1][end]) < best_score:
+                            fc_table[start][end] = best_score
+                        else:
+                            fc_table[start][end] = (fc_table[start][i+1] + fc_table[i+1][end])
+                    
+                    #check whether the existing value is lower
+                    elif fc_table[start][end] < fc_table[start][i+1] + fc_table[i+1][end]:
+                        fc_table[start][end] = fc_table[start][i+1] + fc_table[i+1][end]
+        
+    return fc_table
+
+# language model + future cost + translation model
+
+sent = "I think that it was quite superb .".split()
+
+d = get_future_cost_table(sent)
+for key, value in sorted(d.iteritems(), key=lambda (k,v): (v,k), reverse=True):
+    print key, value
+
+# lang_cost = get_lm_cost(sent[0])
+# tm_dict, tm_cost = get_tm_info(sent[2])
+
+# print lang_cost
+# print tm_cost
+#print "Lang model pr = %f\n" %(lang_cost)
+#print "Trans model pr = %f\n" %(tm_cost)
 #find list of translations
 # output_tm = tm.get_translation_model_prob("en")
 
@@ -248,8 +347,10 @@ def get_consecutive_parts(input_sent):
     return consecutive_parts
 
 def get_translations(phrase):
-    for translation, score in TM.translate(phrase).iteritems():
-        t = TranslationOption(phrase[0][0], phrase[-1][0], [p[1] for p in phrase], translation, score)
+    phrase_words = [p[1] for p in phrase]
+    #print len(tm.get_translation_model_prob_f(' '.join(phrase_words))), ' '.join(phrase_words)
+    for translation, score in tm.get_translation_model_prob_f(' '.join(phrase_words)).iteritems():
+        t = TranslationOption(phrase[0][0], phrase[-1][0], phrase_words, translation, score)
         yield t
 
 def get_possible_phrases_test():
@@ -379,7 +480,7 @@ def pruning_threshold(alpha, stack):
 
 
 
-input_sent = 'Uni of Melb'.split()
+input_sent = 'reprise de la session'.split()
 
 stacks = [Stack(MAX_STACK_SIZE) for x in range(len(input_sent) + 1)]
 
