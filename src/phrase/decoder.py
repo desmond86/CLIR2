@@ -154,31 +154,16 @@ class TranslationOption:
         self.score = score
 
 
-# Base pruning score on future cost (need to estimate) too
-# Gets added to partial probability score
-# Future cost ignores reordering model 
-
-# The cheapest cost estimate for a span is either the cheapest cost for a 
-# translation option or the cheapest sum of costs for a pair of spans that cover
-# it completely
 #############################################
 # Model processing
 #############################################
 
-# Take into account translation model and language model probabilities
-# Set the cost required to process from start to end. Val can be used to set cost to infinity
 lm = SRILangModel()
-#tm = TranslationModel()
 rm = ReorderingModel()
 
 #read language model file
 lm.read_lm_file("source_files/all.lm")
 
-#find the score (log10)
-# output_lm = lm.get_language_model_prob("accommodated")
-# print output_lm
-
-#translation model
 english_file = "source_files/all.lowercased.raw.en"
 foreign_file = "source_files/all.lowercased.raw.fr"
 alignment_file = "source_files/aligned.grow-diag-final-and"
@@ -187,8 +172,20 @@ alignment_file = "source_files/aligned.grow-diag-final-and"
 tm = TranslationModel(english_file, foreign_file, alignment_file)
 tm.extract()
 
-# a sentence is one or more words (list)
 def get_tm_info(sent):
+    """
+    Gets all the required data from the translation model. A greedy
+    approach was taken, where in a sorted list of translation probabilities
+    the 'best' probability is chosen and returned. The dictionary itself is
+    returned purely as a convenience.
+
+    A sentence in this case is perceived as containing one or
+    more words, ie. a phrase.
+
+    Input: sent - A sentence
+    Output: tm_dict - The translation model dictionary
+            best_score - The best score for a translation
+    """
 
     if isinstance(sent, list):
         s = ' '.join(sent)
@@ -197,15 +194,14 @@ def get_tm_info(sent):
     else:
         s = sent
     
-    # else:
-    #     return tm.get_translation_model_prob_e(sent)
     tm_dict = tm.get_translation_model_prob_e(s)
-    sorted_list = sorted(tm_dict.iteritems(), key=lambda (k,v): (v,k), reverse=True)
     
     # sorted_list[0] = best scoring (entry, prob) - first entry in sorted trans prob table
     # sorted_list[-1] = worst scoring (entry, prob) - last entry in sorted trans prob table
-    # get the best cost
-
+    sorted_list = sorted(tm_dict.iteritems(), key=lambda (k,v): (v,k), reverse=True)
+    
+    # If there is data to process, get the best score
+    # Otherwise there is 'no' best score because an empty list was received
     if sorted_list != []:
         best_score = float(sorted_list[0][1])
 
@@ -214,8 +210,16 @@ def get_tm_info(sent):
     
     return tm_dict, best_score
 
-# a sentence is one or more words (list)
 def get_lm_cost(sent):
+    """
+    Used to get the language model cost of a sentence.
+    A sentence in this case is perceived as containing one or
+    more words, ie. a phrase.
+
+    Input: sent - A sentence
+    Output: A probability based on the language model
+    """
+
     if isinstance(sent, list):
         s = ' '.join(sent)
 
@@ -226,26 +230,40 @@ def get_lm_cost(sent):
 
 # Based on current costs, we want to estimate the future costs
 def get_future_cost_table(sent):
+    """    
+    Used to get the future cost of processing words/phrases from
+    a given sentence. This takes into account the translation model's score.
+    A table is generated similar to koehn-06 page 171. Keys are the
+    words/phrases, values are their corresponding future costs. 
 
+    Future cost ignores reordering model.
+
+    Input: sent - A sentence
+    Output: A future cost table
+
+    """
     fc_table = defaultdict(lambda: defaultdict(float))
 
     for length in range(1,len(sent)+1):
         for start in range(0, len(sent)+1-length):
             end = start + length
             key1 = ' '.join(sent[start:end])
-            # print "---------\n"
-            
-            trans_prob, best_score = get_tm_info(key1)# = tm.get_translation_model_prob_e(key1)
+            trans_prob, best_score = get_tm_info(key1)#
 
+            # If there is something to process
             if best_score is not None:
                 print "BEST SCORE = %f\n" %(best_score)
                 fc_table[start][end] = -INFINITY #default value
                 
-                if key1:
+                if key1: # not sure if this is correct?
 
                     fc_table[start][end] = best_score
 
                 for i in range(start, end-1):
+
+                    # The cheapest cost estimate for a span is either the cheapest cost for a 
+                    # translation option or the cheapest sum of costs for a pair of spans that cover
+                    # it completely
 
                     #check whether there is direct path from start to end in the translation model
                     if key1 in trans_prob.iterkeys():
@@ -259,8 +277,6 @@ def get_future_cost_table(sent):
                         fc_table[start][end] = fc_table[start][i+1] + fc_table[i+1][end]
         
     return fc_table
-
-# language model + future cost + translation model
 
 sent = "I think that it was quite superb .".split()
 
@@ -375,47 +391,6 @@ def recombine(stacks):
 def prune(stacks):
     pass
 
-# Base pruning score on future cost (need to estimate) too
-# Gets added to partial probability score
-# Future cost ignores reordering model 
-
-# The cheapest cost estimate for a span is either the cheapest cost for a 
-# translation option or the cheapest sum of costs for a pair of spans that cover
-# it completely
-
-# Take into account translation model and language model probabilities
-# Set the cost required to process from start to end. Val can be used to set cost to infinity
-def get_cost(start, end, val=None):
-    
-    if val is not None:
-        the_cost = val
-
-    # need to get this stuff from the language model
-    else:
-        the_cost = translation_prob(start) + translation_prob(end)
-
-    return the_cost
-
-# Based on current costs, we want to estimate the future costs
-def get_future_cost(n_words):
-    for length in range(1, n):
-        for start in range(1, n_words+1-length):
-            end = start + length
-
-            #initialise the cost from start->end to be infinity
-            start_to_end_cost = get_cost(start, end, INFINITY)
-
-            # If a translation option for a cost estimate exists
-            if trans_opt_cost_estimate:
-                start_to_end_cost = cost_estimate
-
-            for i in range(start, end-1):
-                partial_cost = get_cost(start, i) + get_cost(i+1, end)
-                if partial_cost < get_cost(start_end):
-                    start_to_end_cost = partial_cost
-
-    return start_to_end_cost
-
 def pruning_histogram(stack, pruning_limit):
     """
     Keep a maximum of n hypotheses in the stack
@@ -477,8 +452,6 @@ def pruning_threshold(alpha, stack):
             stack.remove(hyp)
 
     return stack
-
-
 
 input_sent = 'reprise de la session'.split()
 
