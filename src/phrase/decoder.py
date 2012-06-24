@@ -29,7 +29,8 @@ class ReorderingModel:
 
 class Hypothesis:
     def __init__(self, hyp, trans_opt, input_sent=None, fc_table=None):
-        """Create a hypothesis expanding on another hypothesis by a translation option."""
+        """Create a hypothesis expanding on another hypothesis by a
+        translation option."""
         #self.prev = hyp # pointer to previous hypothesis
         #self.next = [] # pointers to next hypotheses
         if hyp is not None:
@@ -39,7 +40,8 @@ class Hypothesis:
             self.trans = {}
             self.trans['input'] = hyp.trans['input'] + [(
                 trans_opt.i_start, trans_opt.i_end, trans_opt.input_phrase)]
-            self.trans['output'] = hyp.trans['output'] + [trans_opt.output_phrase]
+            self.trans['output'] = (hyp.trans['output'] + \
+                                    [trans_opt.output_phrase])
             self.trans['score'] = hyp.trans['score'] + trans_opt.score
         else: # create an empty hypothesis
             self.trans = {
@@ -207,9 +209,12 @@ def get_tm_info(sent):
     
     tm_dict = tm.get_translation_model_prob_e(s)
     
-    # sorted_list[0] = best scoring (entry, prob) - first entry in sorted trans prob table
-    # sorted_list[-1] = worst scoring (entry, prob) - last entry in sorted trans prob table
-    sorted_list = sorted(tm_dict.iteritems(), key=lambda (k,v): (v,k), reverse=True)
+    # sorted_list[0] = best scoring (entry, prob)
+    #   - first entry in sorted trans prob table
+    # sorted_list[-1] = worst scoring (entry, prob)
+    #   - last entry in sorted trans prob table
+    sorted_list = sorted(tm_dict.iteritems(), key=lambda (k,v): (v,k),
+                    reverse=True)
     
     # If there is data to process, get the best score
     # Otherwise there is 'no' best score because an empty list was received
@@ -266,15 +271,19 @@ def get_future_cost_table(sent):
                 fc_table[start][end] = best_score
             
             for i in range(start, end-1):
-                # The cheapest cost estimate for a span is either the cheapest cost for a 
-                # translation option or the cheapest sum of costs for a pair of spans that cover
-                # it completely
+                # The cheapest cost estimate for a span is either the cheapest
+                # cost for a translation option or the cheapest sum of costs
+                # for a pair of spans that cover it completely
+
 #                print '[', start, '][', i+1, ']', fc_table[start][i+1], '+',
-#                print '[', i+1, '][', end, ']', fc_table[i+1][end], '=', fc_table[start][i+1] + fc_table[i+1][end]
+#                print '[', i+1, '][', end, ']', fc_table[i+1][end], '=',
+#                   fc_table[start][i+1] + fc_table[i+1][end]
 #                print '[start][end]', fc_table[start][end]
 #                print '-'*8
-                if (fc_table[start][i+1] + fc_table[i+1][end]) > fc_table[start][end]:
-                    fc_table[start][end] = (fc_table[start][i+1] + fc_table[i+1][end])
+                if (fc_table[start][i+1] +
+                    fc_table[i+1][end]) > fc_table[start][end]:
+                    fc_table[start][end] = (fc_table[start][i+1] + 
+                        fc_table[i+1][end])
 
         
     return fc_table
