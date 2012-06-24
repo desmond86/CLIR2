@@ -1,7 +1,14 @@
 # Authors:
-# Hai Dong Luong (573780) <[hai-ld]>
-# Desmond Putra () <[login]>
+# Hai Dong Luong (573780) <hai-ld>
+# Desmond Putra () <dputra>
 # Andrew Vadnal (326558) <avadnal>
+
+"""
+Assignment 2. A Phrase-based translation model and decoder.
+
+>>> decoder_test(5)
+
+"""
 
 from __future__ import division
 from pprint import pprint
@@ -100,6 +107,7 @@ def get_future_cost_table(sent):
                 fc_table[start][end] = best_score
 
             for i in range(start, end - 1):
+
                 # The cheapest cost estimate for a span is either the cheapest
                 # cost for a translation option or the cheapest sum of costs
                 # for a pair of spans that cover it completely
@@ -111,26 +119,44 @@ def get_future_cost_table(sent):
     return fc_table
 
 
-if __name__ == '__main__':
-    print 'Translating...'
-    input_sent = 'reprise de la session'.split()
-    fc_table = get_future_cost_table(input_sent)
+def decoder_test(n_sentences):
+    """
+    Used to get the future cost of processing words/phrases from
+    a given sentence. This takes into account the translation model's score.
+    A table is generated similar to koehn-06 page 171. Keys are the
+    words/phrases, values are their corresponding future costs.
 
-    stacks = [Stack(MAX_STACK_SIZE) for x in range(len(input_sent) + 1)]
+    Future cost ignores reordering model.
 
-    empty_hyp = Hypothesis(None, None, input_sent, fc_table)
-    stacks[0].add(empty_hyp)
+    Input: n_sentences - The number of sentences to parse from the
+           foreign file
+    Output: The corresponding English/Foreign sentences and its associated
+           processing cost
 
-    for idx, stack in enumerate(stacks):
-        i = 0
-        for hyp in stack.hypotheses():
-            for trans_opt in get_trans_opts(hyp, tm, rm, lm):
-                new_hyp = Hypothesis(hyp, trans_opt)
-                new_stack = stacks[new_hyp.input_len()]
-                new_stack.add(new_hyp)
+    """
+    
+    f = open(foreign_file, 'r')
+    lines = []
+    [lines.append(line.split("\n")) for line in f.readlines()[:n_sentences]]
 
-    #for i in stacks:
-    #    print i.hyps[-1]
+    for i in range(len(lines)):
+  
+        print 'Translating phrase %d of %d\n.' % (i+1, len(lines))
+        input_sent = lines[i][0].split(' ')
+        fc_table = get_future_cost_table(input_sent)
+
+        stacks = [Stack(MAX_STACK_SIZE) for x in range(len(input_sent) + 1)]
+
+        empty_hyp = Hypothesis(None, None, input_sent, fc_table)
+        stacks[0].add(empty_hyp)
+
+        for idx, stack in enumerate(stacks):
+            for hyp in stack.hypotheses():
+                for trans_opt in get_trans_opts(hyp, tm, rm, lm):
+                    new_hyp = Hypothesis(hyp, trans_opt)
+                    new_stack = stacks[new_hyp.input_len()]
+                    new_stack.add(new_hyp)
+
     last_stack = stacks[-1]
     best_hyp = last_stack.best()
     translation = best_hyp.trans['output']
@@ -139,3 +165,7 @@ if __name__ == '__main__':
         print best_hyp.trans['input']
         print best_hyp.trans['output']
         print best_hyp.trans['score']
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()

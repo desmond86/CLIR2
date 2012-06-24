@@ -1,3 +1,8 @@
+# Authors:
+# Hai Dong Luong (573780) <hai-ld>
+# Desmond Putra () <dputra>
+# Andrew Vadnal (326558) <avadnal>
+
 class ReorderingModel:
     def __init__(self):
         pass

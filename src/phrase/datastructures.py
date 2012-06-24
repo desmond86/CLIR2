@@ -1,3 +1,8 @@
+# Authors:
+# Hai Dong Luong (573780) <hai-ld>
+# Desmond Putra () <dputra>
+# Andrew Vadnal (326558) <avadnal>
+
 import bisect
 
 # custom modules
@@ -108,8 +113,13 @@ class Stack:
             for i, j in enumerate(identical_hyps):
                 del self.hyps[j - i]
 
+        # This is an example of 'Histogram pruning'
+        # If the stack approaches its MAXSIZE, prune it by
+        # removing (in this case) one hypothesis - the bottom
+        # or 'oldest' element of the stack.
         if len(self.hyps) > self.size:
             del self.hyps[0]
+
         if identical_hyps or not has_identical:
             bisect.insort(self.hyps, hyp)
             return hyp
