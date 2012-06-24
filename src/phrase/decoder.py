@@ -74,25 +74,6 @@ def get_tm_info(sent):
     return best_score
 
 
-def get_lm_cost(sent):
-    """
-    Used to get the language model cost of a sentence.
-    A sentence in this case is perceived as containing one or
-    more words, ie. a phrase.
-
-    Input: sent - A sentence
-    Output: A probability based on the language model
-    """
-
-    if isinstance(sent, list):
-        s = ' '.join(sent)
-
-    # just in case a string is passed in by 'accident'
-    else:
-        s = sent
-    return lm.get_language_model_prob(s)
-
-
 def get_future_cost_table(sent):
     """
     Used to get the future cost of processing words/phrases from
@@ -122,12 +103,6 @@ def get_future_cost_table(sent):
                 # The cheapest cost estimate for a span is either the cheapest
                 # cost for a translation option or the cheapest sum of costs
                 # for a pair of spans that cover it completely
-
-#                print '[', start, '][', i+1, ']', fc_table[start][i+1], '+',
-#                print '[', i+1, '][', end, ']', fc_table[i+1][end], '=',
-#                   fc_table[start][i+1] + fc_table[i+1][end]
-#                print '[start][end]', fc_table[start][end]
-#                print '-'*8
                 if (fc_table[start][i + 1] +
                     fc_table[i + 1][end]) > fc_table[start][end]:
                     fc_table[start][end] = (fc_table[start][i + 1] +
@@ -137,6 +112,7 @@ def get_future_cost_table(sent):
 
 
 if __name__ == '__main__':
+    print 'Translating...'
     input_sent = 'reprise de la session'.split()
     fc_table = get_future_cost_table(input_sent)
 
@@ -148,12 +124,8 @@ if __name__ == '__main__':
     for idx, stack in enumerate(stacks):
         i = 0
         for hyp in stack.hypotheses():
-            for trans_opt in get_trans_opts(hyp, tm, rm):
-                #print trans_opt.input_phrase
+            for trans_opt in get_trans_opts(hyp, tm, rm, lm):
                 new_hyp = Hypothesis(hyp, trans_opt)
-                #print 'idx', idx
-                #print 'hyp', hyp
-                #print 'new_hyp', hyp
                 new_stack = stacks[new_hyp.input_len()]
                 new_stack.add(new_hyp)
 

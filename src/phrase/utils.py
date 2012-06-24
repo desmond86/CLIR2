@@ -11,7 +11,7 @@ def get_all_phrases(sentence):
             yield sentence[i:j]
 
 
-def get_trans_opts(hyp, tm, rm):
+def get_trans_opts(hyp, tm, rm, lm):
     """Get all translation options a hypothesis could be expanded upon.
     hyp: the hypothesis to be expanded
     """
@@ -24,7 +24,15 @@ def get_trans_opts(hyp, tm, rm):
             except IndexError:
                 reordering_score = 0.0
             for translation in get_translations(phrase, tm):
-                translation.score += reordering_score
+                try:
+                    words = hyp.trans['output'][-1].split() + \
+                        translation.output_phrase.split()
+                except IndexError:  # empty translation output => start of output sentence
+                    words = ['<s>'] + translation.output_phrase.split()
+
+                ngrams = [(words[i], words[i + 1]) for i in range(len(words) - 1)]
+                language_score = sum([lm.get_language_model_prob(' '.join(ngram)) for ngram in ngrams])
+                translation.score += reordering_score + language_score
                 yield translation
 
 

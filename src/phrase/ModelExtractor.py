@@ -35,7 +35,7 @@ class SRILangModel:
         for line in sents:
             data = line.strip().split('\t')
             if len(data) > 1:
-                self.lm_dict[data[1]] = data[0]
+                self.lm_dict[data[1]] = float(data[0])
 
     def get_language_model_prob(self, ngram):
         if ngram in self.lm_dict:
@@ -180,6 +180,7 @@ class TranslationModel:
         list_alignments = self.format_alignment(list_raw_alignments)
         
         """Extract phrase translation table."""
+        count_oef = defaultdict(lambda: defaultdict(int))
         count_ef = defaultdict(lambda: defaultdict(int))
         count_e = defaultdict(int)
         count_f = defaultdict(int)
