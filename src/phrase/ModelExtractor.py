@@ -1,6 +1,6 @@
 # Authors: 
 # Hai Dong Leong <[login]>
-# Desmond Putra <[login]>
+# Desmond Putra <dputra>
 # Andrew Vadnal <avadnal>
 
 
@@ -201,6 +201,7 @@ class TranslationModel:
                 count_f[f_phrase] += 1
 
                 #check the lexical reordering
+                pair_ef = e_phrase + " " + f_phrase
                 orientation = self.check_reordering(e_start, e_end, f_start, f_end, list_alignments[i])
                 count_oef[orientation][pair_ef] +=1
         
