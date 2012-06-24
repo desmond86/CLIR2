@@ -1,6 +1,6 @@
 # Authors: 
 # Hai Dong Leong <[login]>
-# Desmond Putra <[login]>
+# Desmond Putra <dputra>
 # Andrew Vadnal <avadnal>
 
 
@@ -151,7 +151,7 @@ class TranslationModel:
         self.file_f = file_f
         self.file_alignment = file_alignment
 
-        self.prob_fe = self.prob_ef = defaultdict(lambda: defaultdict(float))
+        self.prob_fe = self.prob_ef = self.prob_oef = defaultdict(lambda: defaultdict(float))
 
     def read_file(self, file_name):
         f = open(file_name, 'r')
@@ -199,20 +199,55 @@ class TranslationModel:
                 count_ef[e_phrase][f_phrase] += 1
                 count_e[e_phrase] += 1
                 count_f[f_phrase] += 1
+
+                #check the lexical reordering
+                pair_ef = e_phrase + " " + f_phrase
+                orientation = self.check_reordering(e_start, e_end, f_start, f_end, list_alignments[i])
+                count_oef[orientation][pair_ef] +=1
         
         # Pr(f|e)
         prob_fe = defaultdict(lambda: defaultdict(float))
         # Pr(e|f)
         prob_ef = defaultdict(lambda: defaultdict(float))
+        # Pr (o,e,f)
+        prob_oef = defaultdict(lambda: defaultdict(float))
        
         for e_phrase in count_ef:
             for f_phrase in count_ef[e_phrase]:
-#                print e_phrase, f_phrase, log10(count_ef[e_phrase][f_phrase] / count_e[e_phrase])
+                pair_ef = e_phrase + " " + f_phrase
                 prob_fe[f_phrase][e_phrase] = log10(count_ef[e_phrase][f_phrase] / count_e[e_phrase])
                 prob_ef[e_phrase][f_phrase] = log10(count_ef[e_phrase][f_phrase] / count_f[f_phrase])
 
-        self.prob_fe, self.prob_ef = prob_fe, prob_ef
-        return prob_fe, prob_ef
+                #add one smoothing to the lexical reordering
+                prob_oef[orientation][pair_ef] = log10((count_oef[orientation][pair_ef]+1)/(count_ef[e_phrase][f_phrase]+1))
+                
+        self.prob_fe, self.prob_ef, self_prob_oef = prob_fe, prob_ef, prob_oef
+        return prob_fe, prob_ef, prob_oef
+
+    def check_reordering(self, e_start, e_end, f_start, f_end, list_alignment):
+        """
+        This function is used to check word alignment point whether it is
+        monotone, swap or discontinue.
+
+        Monotone: if word alignment point to the top left exists
+        Swap: if word alignment point to the top right exists
+        Discontinue: if word alignment point to the neither top left nor top right
+        """     
+        #default orientation
+        orientation = "m"
+
+        #check whether top left point to another word alignment or (-1,-1)
+        if (((e_start-1),(f_start-1)) == (-1,-1)) or (((e_start-1),(f_start-1)) in list_alignment):
+            orientation = "m"
+        #check whether top right point to another word alignment
+        elif ((e_start-1),(f_end+1)) in list_alignment:
+            orientation = "s"
+        #no adjacent
+        else:
+            orientation = "d"
+        
+        return orientation
+
 
     def get_translation_model_prob_f(self, word_f):
         my_dict = {}
