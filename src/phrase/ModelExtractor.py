@@ -1,7 +1,7 @@
-# Authors: 
-# Hai Dong Leong <[login]>
-# Desmond Putra <dputra>
-# Andrew Vadnal <avadnal>
+# Authors:
+# Hai Dong Luong (573780) <hai-ld>
+# Desmond Putra () <dputra>
+# Andrew Vadnal (326558) <avadnal>
 
 
 from __future__ import division

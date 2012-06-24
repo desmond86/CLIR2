@@ -1,4 +1,10 @@
-"""Provides data structures for decoding process."""
+"""
+Provides data structures for decoding process.
+# Authors:
+# Hai Dong Luong (573780) <hai-ld>
+# Desmond Putra () <dputra>
+# Andrew Vadnal (326558) <avadnal>
+"""
 
 import bisect
 
@@ -192,6 +198,10 @@ class Stack:
 
         if not identical_hyp or (identical_hyp and identical_hyp < hyp):
             bisect.insort(self.hyps, hyp)
+            # This is an example of 'Histogram pruning'
+            # If the stack approaches its MAXSIZE, prune it by
+            # removing (in this case) one hypothesis - the top
+            # or worst scored element of the stack.
             if len(self.hyps) > self.size:
                 del self.hyps[0]
             return True

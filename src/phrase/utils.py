@@ -1,5 +1,11 @@
-"""Provides utilitiy functions for decoding process."""
+"""
+Provides utilitiy functions for decoding process.
 
+Authors:
+Hai Dong Luong (573780) <hai-ld>
+Desmond Putra () <dputra>
+Andrew Vadnal (326558) <avadnal>
+"""
 # custom modules
 from TranslationOption import TranslationOption
 
