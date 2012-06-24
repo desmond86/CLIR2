@@ -1,14 +1,29 @@
+"""Provides data structures for decoding process."""
+
 import bisect
 
 # custom modules
 from utils import get_consecutive_parts, get_untranslated_words
 
+
 class Hypothesis:
+    """Data structure representing a hypothesis as described in Koehn 06."""
     def __init__(self, hyp, trans_opt, input_sent=None, fc_table=None):
         """Create a hypothesis expanding on another hypothesis by a
-        translation option."""
-        #self.prev = hyp # pointer to previous hypothesis
-        #self.next = [] # pointers to next hypotheses
+        translation option.
+
+        hyp: a hypothesis to be expanded. If None, create an empty hypothesis.
+
+        trans_opt: a TranslationOption. Ignored if hyp is None.
+
+        input_sent: the input sentence. Only needed when create an empty
+        hypothesis. New hypothesis's input sentence is set to expanded
+        hypothesis's.
+
+        fc_table: future cost table. Only needed when create an empty
+        hypothesis. New hypothesis's future cost table is set to expanded
+        hypothesis's.
+        """
         if hyp is not None:
             #hyp.next.append(self)
             self.input_sent = hyp.input_sent
@@ -35,6 +50,20 @@ class Hypothesis:
                 self.future_cost += self.fc_table[part[0][0]][part[-1][0] + 1]
 
     def input_len(self):
+        """Return the length of input consumed by this hypothesis.
+
+        >>> from collections import defaultdict
+        >>> from TranslationOption import TranslationOption
+        >>> fc_table = defaultdict(lambda: defaultdict(float))
+        >>> empty_hypothesis = Hypothesis(
+        ...     None, None, 'a b c'.split(), fc_table)
+        >>> trans_opt = TranslationOption(1, 2, ['b', 'c'], '2', 0.0)
+        >>> hypothesis = Hypothesis(empty_hypothesis, trans_opt)
+        >>> empty_hypothesis.input_len()
+        0
+        >>> hypothesis.input_len()
+        2
+        """
         l = 0
         for i in self.trans['input']:
             l += len(i[2])
@@ -63,20 +92,38 @@ class Hypothesis:
 
         return this_i_sequence == other_i_sequence and \
                 self.trans['input'][-1][1] == other.trans['input'][-1][1] and \
-                self.trans['output'][-1] == other.trans['output'][-1]
+                self.trans['output'][-1].split()[-1] == \
+                    other.trans['output'][-1].split()[-1]
 
     def __lt__(self, other):
+        """a.__lt__(b) <==> a < b
+        A hypothesis is "less than" another hypothesis when the sum of its
+        current score and future cost is less than the other one. Used for
+        sorting hypothesis.
+        """
         return self.trans['score'] + self.future_cost < \
             other.trans['score'] + other.future_cost
 
     def __le__(self, other):
+        """a.__le__(b) <==> a <= b.
+
+        See __lt__(self, other).
+        """
         return self.trans['score'] + self.future_cost <= \
                 other.trans['score'] + other.future_cost
 
     def __gt__(self, other):
+        """a.__gt__(b) <==> a > b.
+
+        See __lt__(self, other).
+        """
         return not (self <= other)
 
     def __ge__(self, other):
+        """a.__ge__(b) <==> a >= b.
+
+        See __lt__(self, other).
+        """
         return not (self < other)
 
     def __str__(self):
@@ -87,34 +134,68 @@ class Hypothesis:
 
 
 class Stack:
+    """Data structure representing stacks as described in Koehn 06."""
     def __init__(self, size):
         """Create a stack of specified size."""
         self.size = size
         self.hyps = []  # list of hypotheses in ascending order
 
     def add(self, hyp):
-        """Add a hypothesis into the stack."""
-        #bisect.insort(self.hyps, hyp)
-        #return
-        identical_hyps = []
-        has_identical = False
+        """Add a hypothesis into the stack.
+
+        A hypothesis is added when there is no identical hypothesis or there is
+        a worse hypothesis in the stack. Stack gets pruned (histogram) when
+        it's over-sized.
+
+        Return True when hypothesis is add, False otherwise.
+
+        >>> from collections import defaultdict
+        >>> from TranslationOption import TranslationOption
+        >>> fc_table = defaultdict(lambda: defaultdict(float))
+        >>> empty_hypothesis = Hypothesis(
+        ...     None, None, 'a b c'.split(), fc_table)
+        >>> trans_opt = TranslationOption(1, 2, ['b', 'c'], '2', 0.0)
+        >>> hypothesis = Hypothesis(empty_hypothesis, trans_opt)
+        >>> stack = Stack(10)
+        >>> stack.add(hypothesis)
+        True
+
+        >>> trans_opt = TranslationOption(1, 2, ['b', 'c'], '0 3', -1.0)
+        >>> hypothesis = Hypothesis(empty_hypothesis, trans_opt)
+        >>> stack.add(hypothesis)
+        True
+
+        >>> trans_opt = TranslationOption(1, 2, ['b', 'c'], '1 3', -2.0)
+        >>> hypothesis = Hypothesis(empty_hypothesis, trans_opt)
+        >>> # Not added because identical but worse score
+        >>> stack.add(hypothesis)
+        False
+
+        >>> trans_opt = TranslationOption(1, 2, ['b', 'c'], '2 3', -0.5)
+        >>> hypothesis = Hypothesis(empty_hypothesis, trans_opt)
+        >>> # Added because identical but better score
+        >>> stack.add(hypothesis)
+        True
+        """
+        idx, identical_hyp = 0, None
         for i, h in enumerate(self.hyps):
             if h.identical(hyp):
-                has_identical = True
-                if h < hyp:
-                    identical_hyps.append(i)
+                identical_hyp = h
+                idx = i
+                # there can only be one hypothesis identical to
+                # the one being added because there are no existing hypotheses
+                # in the stack identical to one another
+                break
 
-        if identical_hyps:
-            for i, j in enumerate(identical_hyps):
-                del self.hyps[j - i]
+        if identical_hyp and identical_hyp < hyp:
+            del self.hyps[idx]
 
-        if len(self.hyps) > self.size:
-            del self.hyps[0]
-        if identical_hyps or not has_identical:
+        if not identical_hyp or (identical_hyp and identical_hyp < hyp):
             bisect.insort(self.hyps, hyp)
-            return hyp
-        else:
-            return None
+            if len(self.hyps) > self.size:
+                del self.hyps[0]
+            return True
+        return False
 
     def hypotheses(self):
         """Get all hypotheses in the stack."""
@@ -126,3 +207,7 @@ class Stack:
             return self.hyps[-1]
         except IndexError:
             return None
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
