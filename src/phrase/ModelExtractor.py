@@ -180,6 +180,7 @@ class TranslationModel:
         list_alignments = self.format_alignment(list_raw_alignments)
         
         """Extract phrase translation table."""
+        count_oef = defaultdict(lambda: defaultdict(int))
         count_ef = defaultdict(lambda: defaultdict(int))
         count_e = defaultdict(int)
         count_f = defaultdict(int)
