@@ -331,8 +331,9 @@ def get_untranslated_words(hyp):
 
 def get_consecutive_parts(input_sent):
     """Get consecutive parts in a non-consecutive sentence.
-    input_sent: input sentence given as a list of tuples in which second elements are untranslated words
-    and first elements are positions of the words in input sentence.
+    input_sent: input sentence given as a list of tuples in which second
+    elements are untranslated words and first elements are positions of the
+    words in input sentence.
 
     Return a list of consecutive parts, each of which is a list of words
     """
@@ -354,9 +355,12 @@ def get_consecutive_parts(input_sent):
 
 def get_translations(phrase):
     phrase_words = [p[1] for p in phrase]
-    #print len(tm.get_translation_model_prob_f(' '.join(phrase_words))), ' '.join(phrase_words)
-    for translation, score in tm.get_translation_model_prob_f(' '.join(phrase_words)).iteritems():
-        t = TranslationOption(phrase[0][0], phrase[-1][0], phrase_words, translation, score)
+    #print len(tm.get_translation_model_prob_f(' '.join(phrase_words))),
+    # ' '.join(phrase_words)
+    for translation, score in 
+        (tm.get_translation_model_prob_f(' '.join(phrase_words)).iteritems()):
+        t = TranslationOption(phrase[0][0], phrase[-1][0],
+         phrase_words, translation, score)
         yield t
 
 def get_possible_phrases_test():
@@ -400,7 +404,8 @@ def pruning_histogram(stack, pruning_limit):
     # Check the stack size
     if len(stack) > MAX_STACK_SIZE:
 
-        # Remove the specified amount of hypotheses from the stack and return stack
+        # Remove the specified amount of hypotheses from the stack and
+        # return stack
         [stack.pop(0) for i in range(pruning_limit)]
         return stack
     
@@ -437,13 +442,15 @@ def pruning_threshold(alpha, stack):
         # Get the future cost of processing the next n hypotheses
         future_cost = self.get_future_cost(num_words)
 
-        # If the score of a hypothesis is 'threshold' times worse than best, prune it
+        # If the score of a hypothesis is 'threshold' times worse than best,
+        # prune it
         if best_score / (prob_score + future_cost) < alpha:  
             stack.remove(hyp)
 
     return stack
 
-input_sent = 'the tourism initative addresses this for the first time'.split() #'reprise de la session'.split()
+input_sent = 'the tourism initative addresses this for the first time'.split()
+ #'reprise de la session'.split()
 fc_table = get_future_cost_table(input_sent)
 pprint(dict(fc_table))
 
