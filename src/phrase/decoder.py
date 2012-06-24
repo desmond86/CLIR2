@@ -189,8 +189,7 @@ def get_tm_info(sent):
     """
     Gets all the required data from the translation model. A greedy
     approach was taken, where in a sorted list of translation probabilities
-    the 'best' probability is chosen and returned. The dictionary itself is
-    returned purely as a convenience.
+    the 'best' probability is chosen and returned.
 
     A sentence in this case is perceived as containing one or
     more words, ie. a phrase.
@@ -224,7 +223,7 @@ def get_tm_info(sent):
     else:
         best_score = None
     
-    return tm_dict, best_score
+    return best_score
 
 def get_lm_cost(sent):
     """
@@ -266,7 +265,7 @@ def get_future_cost_table(sent):
             fc_table[start][end] = float('-inf')
 
             key1 = ' '.join(sent[start:end])
-            trans_prob, best_score = get_tm_info(key1)#
+            best_score = get_tm_info(key1)
             if best_score is not None:
                 fc_table[start][end] = best_score
             
@@ -357,7 +356,7 @@ def get_translations(phrase):
     phrase_words = [p[1] for p in phrase]
     #print len(tm.get_translation_model_prob_f(' '.join(phrase_words))),
     # ' '.join(phrase_words)
-    for translation, score in 
+    for translation, score in \
         (tm.get_translation_model_prob_f(' '.join(phrase_words)).iteritems()):
         t = TranslationOption(phrase[0][0], phrase[-1][0],
          phrase_words, translation, score)
@@ -449,10 +448,9 @@ def pruning_threshold(alpha, stack):
 
     return stack
 
-input_sent = 'the tourism initative addresses this for the first time'.split()
- #'reprise de la session'.split()
+input_sent = 'reprise de la session'.split()
 fc_table = get_future_cost_table(input_sent)
-pprint(dict(fc_table))
+# pprint(dict(fc_table))
 
 stacks = [Stack(MAX_STACK_SIZE) for x in range(len(input_sent) + 1)]
 
@@ -463,24 +461,26 @@ for idx, stack in enumerate(stacks):
     i = 0
     for hyp in stack.hypotheses():
         for trans_opt in get_trans_opts(hyp):
-#            print trans_opt.input_phrase
+            #print trans_opt.input_phrase
             new_hyp = Hypothesis(hyp, trans_opt)
-#            print 'idx', idx
-#            print 'hyp', hyp
-#            print 'new_hyp', hyp
+            #print 'idx', idx
+            #print 'hyp', hyp
+            #print 'new_hyp', hyp
             new_stack = stacks[new_hyp.input_len()]
             new_stack.add(new_hyp)
             recombine(stacks)
             prune(stacks)
 
-last_stack = stacks[-1]
-best_hyp = last_stack.best()
+for i in stacks:
+    print i.hyps[0]
+#last_stack = stacks[-1]
+#best_hyp = last_stack.best()
 #translation = best_hyp.trans['output']
 
-if best_hyp is not None:
-    print best_hyp.trans['input']
-    print best_hyp.trans['output']
-    print best_hyp.trans['score']
+# if best_hyp is not None:
+#     print best_hyp.trans['input']
+#     print best_hyp.trans['output']
+#     print best_hyp.trans['score']
 
 #for stack in stacks:
 #    print len(stack.hypotheses())
