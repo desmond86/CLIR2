@@ -144,8 +144,10 @@ class Stack:
 
     def best(self):
         """Return the best hypotheses in the stack."""
-        return self.hyps[-1]
-
+        try:
+            return self.hyps[-1]
+        except IndexError:
+            return None
 
 class TranslationOption:
     def __init__(self, i_start, i_end, input_phrase, output_phrase, score):
@@ -432,7 +434,7 @@ def pruning_threshold(alpha, stack):
 
     return stack
 
-input_sent = 'reprise de la session'.split()
+input_sent = 'the tourism initative addresses this for the first time'.split() #'reprise de la session'.split()
 fc_table = get_future_cost_table(input_sent)
 pprint(dict(fc_table))
 
@@ -459,9 +461,10 @@ last_stack = stacks[-1]
 best_hyp = last_stack.best()
 #translation = best_hyp.trans['output']
 
-print best_hyp.trans['input']
-print best_hyp.trans['output']
-print best_hyp.trans['score']
+if best_hyp is not None:
+    print best_hyp.trans['input']
+    print best_hyp.trans['output']
+    print best_hyp.trans['score']
 
 #for stack in stacks:
 #    print len(stack.hypotheses())
