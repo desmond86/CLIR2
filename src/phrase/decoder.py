@@ -1,16 +1,17 @@
 # Authors: 
-# Hai Dong Luong () <[hai-ld]>
+# Hai Dong Luong (573780) <[hai-ld]>
 # Desmond Putra () <[login]>
 # Andrew Vadnal (326558) <avadnal>
 
 from __future__ import division
 from pprint import pprint
-from sys import maxint as INFINITY
-from ModelExtractor import *
 
+# use float('-inf') instead
+# from sys import maxint as INFINITY
+from ModelExtractor import *
 import bisect
 
-MAX_STACK_SIZE = 100
+MAX_STACK_SIZE = 10
 
 #############################################
 # Class declarations
@@ -20,36 +21,40 @@ class ReorderingModel:
     def __init__(self):
         pass
 
-    def cost(self, prev_phrase, next_phrase):
-        return 1.0
+    def score(self, prev_phrase, next_phrase):
+        """Calculate reordering cost based on distance between phrases."""
+        dist = next_phrase[0][0] - prev_phrase[1] - 1
+        return -(abs(dist))
 
-#class TranslationModel:
-#    def __init__(self):
-#        pass
-#
-#    def translate(self, phrase):
-#        return {
-#            'trans-0': 0.1,
-#            'trans-1': 0.5,
-#        }
 
 class Hypothesis:
-    def __init__(self, hyp, trans_opt):
+    def __init__(self, hyp, trans_opt, input_sent=None, fc_table=None):
         """Create a hypothesis expanding on another hypothesis by a translation option."""
         #self.prev = hyp # pointer to previous hypothesis
         #self.next = [] # pointers to next hypotheses
         if hyp is not None:
             #hyp.next.append(self)
+            self.input_sent = hyp.input_sent
+            self.fc_table = hyp.fc_table
             self.trans = {}
-            self.trans['input'] = hyp.trans['input'] + [(trans_opt.i_start, trans_opt.i_end, trans_opt.input_phrase)]
+            self.trans['input'] = hyp.trans['input'] + [(
+                trans_opt.i_start, trans_opt.i_end, trans_opt.input_phrase)]
             self.trans['output'] = hyp.trans['output'] + [trans_opt.output_phrase]
-            self.trans['score'] = hyp.trans['score'] * trans_opt.score
+            self.trans['score'] = hyp.trans['score'] + trans_opt.score
         else: # create an empty hypothesis
             self.trans = {
                 'input': [],
                 'output': [],
-                'score': 1.0,
+                'score': 0.0,
             }
+            self.input_sent = input_sent
+            self.fc_table = fc_table
+
+        self.future_cost = 0.0
+        parts = get_consecutive_parts(get_untranslated_words(self))
+        if parts[0]:
+            for part in parts:
+                self.future_cost += self.fc_table[part[0][0]][part[-1][0] + 1]
 
     def input_len(self):
         l = 0
@@ -83,10 +88,12 @@ class Hypothesis:
                 self.trans['output'][-1] == other.trans['output'][-1]
     
     def __lt__(self, other):
-        return self.trans['score'] < other.trans['score']
+        return self.trans['score'] + self.future_cost < \
+            other.trans['score'] + other.future_cost
 
     def __le__(self, other):
-        return self.trans['score'] <= other.trans['score']
+        return self.trans['score'] + self.future_cost <= \
+                other.trans['score'] + other.future_cost
 
     def __gt__(self, other):
         return not (self <= other)
@@ -99,6 +106,7 @@ class Hypothesis:
 
     def __repr__(self):
         return str(self.__dict__)
+
 
 class Stack:
     def __init__(self, size):
@@ -138,6 +146,7 @@ class Stack:
         """Return the best hypotheses in the stack."""
         return self.hyps[-1]
 
+
 class TranslationOption:
     def __init__(self, i_start, i_end, input_phrase, output_phrase, score):
         """Create a translation option.
@@ -158,9 +167,8 @@ class TranslationOption:
 # Model processing
 #############################################
 
-
 lm = SRILangModel()
-#rm = ReorderingModel()
+rm = ReorderingModel()
 
 #read language model file
 lm.read_lm_file("source_files/all.lm")
@@ -243,61 +251,31 @@ def get_future_cost_table(sent):
     Output: A future cost table
 
     """
-    fc_table = defaultdict(lambda: defaultdict(float))
+    fc_table = defaultdict(lambda: defaultdict(None))
 
     for length in range(1,len(sent)+1):
         for start in range(0, len(sent)+1-length):
             end = start + length
+            fc_table[start][end] = float('-inf')
+
             key1 = ' '.join(sent[start:end])
             trans_prob, best_score = get_tm_info(key1)#
-
-            # If there is something to process
             if best_score is not None:
-                print "BEST SCORE = %f\n" %(best_score)
-                fc_table[start][end] = -INFINITY #default value
-                
-                if key1: # not sure if this is correct?
+                fc_table[start][end] = best_score
+            
+            for i in range(start, end-1):
+                # The cheapest cost estimate for a span is either the cheapest cost for a 
+                # translation option or the cheapest sum of costs for a pair of spans that cover
+                # it completely
+#                print '[', start, '][', i+1, ']', fc_table[start][i+1], '+',
+#                print '[', i+1, '][', end, ']', fc_table[i+1][end], '=', fc_table[start][i+1] + fc_table[i+1][end]
+#                print '[start][end]', fc_table[start][end]
+#                print '-'*8
+                if (fc_table[start][i+1] + fc_table[i+1][end]) > fc_table[start][end]:
+                    fc_table[start][end] = (fc_table[start][i+1] + fc_table[i+1][end])
 
-                    fc_table[start][end] = best_score
-
-                for i in range(start, end-1):
-
-                    # The cheapest cost estimate for a span is either the cheapest cost for a 
-                    # translation option or the cheapest sum of costs for a pair of spans that cover
-                    # it completely
-
-                    #check whether there is direct path from start to end in the translation model
-                    if key1 in trans_prob.iterkeys():
-                        if (fc_table[start][i+1] + fc_table[i+1][end]) < best_score:
-                            fc_table[start][end] = best_score
-                        else:
-                            fc_table[start][end] = (fc_table[start][i+1] + fc_table[i+1][end])
-                    
-                    #check whether the existing value is lower
-                    elif fc_table[start][end] < fc_table[start][i+1] + fc_table[i+1][end]:
-                        fc_table[start][end] = fc_table[start][i+1] + fc_table[i+1][end]
         
     return fc_table
-
-sent = "I think that it was quite superb .".split()
-
-d = get_future_cost_table(sent)
-for key, value in sorted(d.iteritems(), key=lambda (k,v): (v,k), reverse=True):
-    print key, value
-
-# lang_cost = get_lm_cost(sent[0])
-# tm_dict, tm_cost = get_tm_info(sent[2])
-
-# print lang_cost
-# print tm_cost
-#print "Lang model pr = %f\n" %(lang_cost)
-#print "Trans model pr = %f\n" %(tm_cost)
-#find list of translations
-# output_tm = tm.get_translation_model_prob("en")
-
-# #find the score (log10) sort by highest score
-# for key, value in sorted(output_tm.iteritems(), key=lambda (k,v): (v,k), reverse=True):
-#     print key, value
 
 #############################################
 # Utility functions
@@ -311,29 +289,29 @@ def get_all_phrases(sentence):
         for j in range(i + 1, len(sentence) + 1):
             yield sentence[i:j]
 
-def get_trans_opts(input_sent, hyp):
+def get_trans_opts(hyp):
     """Get all translation options a hypothesis could be expanded upon.
-    input_sent: input sentence given as a list of words
     hyp: the hypothesis to be expanded
     """
-    untrans = get_untranslated_words(input_sent, hyp)
+    untrans = get_untranslated_words(hyp)
 
     for part in get_consecutive_parts(untrans):
         for phrase in get_all_phrases(part):
-            reordering_score = 1.0 #reordering_model(hyp.trans['input'][-1], phrase)
+            try:
+                reordering_score = rm.score(hyp.trans['input'][-1], phrase)
+            except IndexError:
+                reordering_score = 0.0
             for translation in get_translations(phrase):
-                translation.score *= reordering_score
+                translation.score += reordering_score
                 yield translation
 
-def get_untranslated_words(input_sent, hyp):
+def get_untranslated_words(hyp):
     """Get words untranslated by a hypothesis.
-    input_sent: input sentence given as a list of words
-    hyp: a hypothesis translating the input sentence
 
     Returns a list of tuples in which second elements are untranslated words
     and first elements are positions of the words in input sentence.
     """
-    input_sent = dict(enumerate(input_sent))
+    input_sent = dict(enumerate(hyp.input_sent))
     for i in hyp.trans['input']:
         for j in range(i[0], i[1] + 1):
             del input_sent[j]
@@ -455,16 +433,18 @@ def pruning_threshold(alpha, stack):
     return stack
 
 input_sent = 'reprise de la session'.split()
+fc_table = get_future_cost_table(input_sent)
+pprint(dict(fc_table))
 
 stacks = [Stack(MAX_STACK_SIZE) for x in range(len(input_sent) + 1)]
 
-empty_hyp = Hypothesis(None, None)
+empty_hyp = Hypothesis(None, None, input_sent, fc_table)
 stacks[0].add(empty_hyp)
 
 for idx, stack in enumerate(stacks):
     i = 0
     for hyp in stack.hypotheses():
-        for trans_opt in get_trans_opts(input_sent, hyp):
+        for trans_opt in get_trans_opts(hyp):
 #            print trans_opt.input_phrase
             new_hyp = Hypothesis(hyp, trans_opt)
 #            print 'idx', idx
@@ -483,6 +463,6 @@ print best_hyp.trans['input']
 print best_hyp.trans['output']
 print best_hyp.trans['score']
 
-for stack in stacks:
-    print len(stack.hypotheses())
-    pprint(stack.hypotheses())
+#for stack in stacks:
+#    print len(stack.hypotheses())
+#    pprint(stack.hypotheses())
