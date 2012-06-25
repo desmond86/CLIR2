@@ -7,16 +7,72 @@
 Assignment 2. A Phrase-based translation model and decoder.
 
 >>> all_file = "source_files/all.lm"
->>> e_file = "source_files/all.lowercased.raw.en" 
->>> f_file = "source_files/all.lowercased.raw.fr"
+>>> e_file = "source_files/all.test.lowercased.raw.en" 
+>>> f_file = "source_files/all.test.lowercased.raw.fr"
 >>> a_file = "source_files/aligned.grow-diag-final-and"
 >>> max_stack_size = 10
 >>> decoder = Decoder(all_file, e_file, f_file, a_file, max_stack_size)
 >>> decoder.process_models()
 >>> alpha = 1.0/2
 >>> prune_type = "Threshold"
->>> decoder.decoder_test(f_file, 2, prune_type, alpha)
+>>> sentences = 50
+>>> decoder.decoder_test(f_file, sentences, prune_type, alpha)
 """
+
+# Performance Discussion:
+
+# There are two types of hypothesis pruning processes available: Histogram pruning
+# and Threshold pruning. Histogram pruning lets the stack of hypotheses grow until
+# it reaches a designated MAX_STACK_SIZE. This involves adding every hypothesis
+# to the stack and only removing items when it reaches a full state. This process
+# is expensive as it allows poor (expensive) hypotheses to be added to the
+# stack, those of which will never be used in an actual translation. Removing an 
+# item is also expensive, because the 'worst' translation - that is, Stack[0] is
+# deleted. This means that, at worst, MAX_STACK_SIZE-1 elements have to be
+# shuffled 'down' despite the best case scenario of only one element being 
+# removed.
+
+# The second type of pruning process available is the Threshold pruning approach.
+# Instead of adding every hypothesis into the stack, it determines the best
+# (cheapest) costing hypothesis and determines whether or not new hypotheses are
+# 'alpha' times more expensive or worse than it. If it is, it is never added to
+# the stack, otherwise it is. This method is noticably more efficient than the
+# Histogram pruning approach, as poor/expensive hypotheses are never added to the
+# stack at all, therefore eliminating the need to delete hypotheses and
+# perform the expensive process of reording the stack elements.
+
+# Performance Results:
+
+# Test 1. Execute Histogram pruning on 5 sentences with a stack size of 10.
+# Result: 0m54.244s
+
+# Test 2. Execute Histogram pruning on 10 sentences with a stack size of 10.
+# Result: 1m59.734s
+
+# Test 3. Execute Histogram pruning on 20 sentences with a stack size of 5.
+# Result: 1m12.525s
+
+# Test 4. Execute Threshold pruning on 5 sentences with a stack size of 10.
+# Alpha = 0.5
+# Result: 0m3.301s
+
+# Test 5. Execute Threshold pruning on 10 sentences with a stack size of 10.
+# Alpha = 0.5
+# Result: 0m4.888s
+
+# Test 6. Execute Threshold pruning on 20 sentences with a stack size of 10.
+# Alpha = 0.5
+# Result: 0m7.634s
+
+# Test 7. Execute Threshold pruning on 20 sentences with a stack size of 5.
+# Alpha = 0.5
+# Result: 0m7.579s
+
+# From these tests it can be seen that there is a direct correlation between
+# the total duration of processing and the amount of sentences that are 
+# given as input. Reducing the stack size lowers the processing time, albeit at
+# the risk of pruning an hypothesis that could eventually be the cheapest.
+
 
 from __future__ import division
 
@@ -187,7 +243,6 @@ class Decoder:
 
             last_stack = stacks[-1]
             best_hyp = last_stack.best()
-            translation = best_hyp.trans['output']
 
             if best_hyp is not None:
                 print best_hyp.trans['input']
