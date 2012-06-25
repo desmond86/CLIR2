@@ -13,11 +13,12 @@ Assignment 2. A Phrase-based translation model and decoder.
 >>> max_stack_size = 10
 >>> decoder = Decoder(all_file, e_file, f_file, a_file, max_stack_size)
 >>> decoder.process_models()
->>> decoder.decoder_test(f_file, 5)
-
+>>> alpha = 1.0/2
+>>> prune_type = "Histogram"
+>>> decoder.decoder_test(f_file, 2, prune_type)
 """
+
 from __future__ import division
-from pprint import pprint
 
 # custom modules
 from ModelExtractor import *
@@ -26,8 +27,20 @@ from datastructures import Hypothesis, Stack
 from utils import get_trans_opts
 
 class Decoder:
+    """
+    Data structure for representing the phrase decoding process.
+    """
 
     def __init__(self, all_file, e_file, f_file, align_file, max_stack_size):
+        """
+        Initialise an instance of the Decoder class.
+
+        all_file: Contains all n-gram costs
+        e_file: The raw English text input file
+        f_file: The raw Foreign (French) text input file
+        align_file: The word alignment file
+        max_stack_size: The maximum number of hypotheses within a stack
+        """
         self.all_file = all_file
         self.english_file = e_file
         self.foreign_file = f_file
@@ -38,29 +51,14 @@ class Decoder:
         self.tm = TranslationModel(self.english_file, self.foreign_file,
                                     self.alignment_file)
 
+
     def process_models(self):
+        """
+        Reads in the 'all' file for the language model and
+        extracts the phrases for use in the translation model.
+        """
         self.lm.read_lm_file(self.all_file)
         self.tm.extract()
-
-    # MAX_STACK_SIZE = 10
-
-    #############################################
-    # Model processing
-    #############################################
-
-    # lm = SRILangModel()
-    # rm = ReorderingModel()
-
-    # #read language model file
-    # lm.read_lm_file("source_files/all.lm")
-
-    # english_file = "source_files/all.lowercased.raw.en"
-    # foreign_file = "source_files/all.lowercased.raw.fr"
-    # alignment_file = "source_files/aligned.grow-diag-final-and"
-
-    # #run the translation model
-    # tm = TranslationModel(english_file, foreign_file, alignment_file)
-    # tm.extract()
 
 
     def get_tm_info(self, sent):
@@ -142,7 +140,7 @@ class Decoder:
         return fc_table
 
 
-    def decoder_test(self, foreign_file, n_sentences):
+    def decoder_test(self, foreign_file, n_sentences, prune_type, alpha=None):
         """
         Used to get the future cost of processing words/phrases from
         a given sentence. This takes into account the translation model's score.
@@ -168,8 +166,13 @@ class Decoder:
             input_sent = lines[i][0].split(' ')
             fc_table = self.get_future_cost_table(input_sent)
 
-            stacks = [Stack(self.MAX_STACK_SIZE)
-             for x in range(len(input_sent) + 1)]
+            if alpha is None and prune_type is "Histogram":
+                stacks = [Stack(self.MAX_STACK_SIZE, prune_type)
+                            for x in range(len(input_sent) + 1)]
+
+            elif prune_type is "Threshold" and alpha is not None:
+                stacks = [Stack(self.MAX_STACK_SIZE, prune_type, alpha)
+                            for x in range(len(input_sent) + 1)]
 
             empty_hyp = Hypothesis(None, None, input_sent, fc_table)
             stacks[0].add(empty_hyp)
@@ -190,6 +193,7 @@ class Decoder:
                 print best_hyp.trans['input']
                 print best_hyp.trans['output']
                 print best_hyp.trans['score']
+
 
 if __name__ == '__main__':
     import doctest
