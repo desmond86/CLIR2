@@ -141,10 +141,12 @@ class Hypothesis:
 
 class Stack:
     """Data structure representing stacks as described in Koehn 06."""
-    def __init__(self, size):
+    def __init__(self, size, pruning_type="Histogram", alpha=None):
         """Create a stack of specified size."""
         self.size = size
         self.hyps = []  # list of hypotheses in ascending order
+        self.alpha = alpha
+        self.pruning_type = pruning_type
 
     def add(self, hyp):
         """Add a hypothesis into the stack.
@@ -197,13 +199,29 @@ class Stack:
             del self.hyps[idx]
 
         if not identical_hyp or (identical_hyp and identical_hyp < hyp):
-            bisect.insort(self.hyps, hyp)
-            # This is an example of 'Histogram pruning'
-            # If the stack approaches its MAXSIZE, prune it by
-            # removing (in this case) one hypothesis - the top
-            # or worst scored element of the stack.
-            if len(self.hyps) > self.size:
-                del self.hyps[0]
+
+            if self.pruning_type is "Histogram":
+                bisect.insort(self.hyps, hyp)
+
+                # This is an example of 'Histogram pruning'
+                # If the stack approaches its MAXSIZE, prune it by
+                # removing (in this case) one hypothesis - the top
+                # or worst scored element of the stack.
+                if len(self.hyps) > self.size:
+                    del self.hyps[0]
+
+            elif self.pruning_type is "Threshold":
+                try:
+                    best_score = self.hyps[-1].trans['score'] + self.hyps[-1].future_cost
+
+                    # If the score of a hypothesis is 'threshold/alpha' times worse than best, prune it
+                    # If it is > alpha, we do not add it.
+                    if (best_score / (hyp.future_cost + hyp.trans['score'])) < alpha:
+                        bisect.insort(self.hyps, hyp)
+                        
+                except IndexError:
+                        bisect.insort(self.hyps, hyp)
+
             return True
         return False
 
