@@ -9,7 +9,7 @@ Andrew Vadnal (326558) <avadnal>
 
 class ReorderingModel:
     """Represent a simple reordering model based on phrase distance.
-    
+
     limit: reordering limit. The distance between phrases should not be larger
     than this number.
     """

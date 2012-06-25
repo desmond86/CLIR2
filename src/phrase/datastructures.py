@@ -212,13 +212,15 @@ class Stack:
 
             elif self.pruning_type is "Threshold":
                 try:
-                    best_score = self.hyps[-1].trans['score'] + self.hyps[-1].future_cost
+                    best_score = self.hyps[-1].trans['score'] + \
+                            self.hyps[-1].future_cost
 
-                    # If the score of a hypothesis is 'threshold/alpha' times worse than best, prune it
-                    # If it is > alpha, we do not add it.
-                    if (best_score / (hyp.future_cost + hyp.trans['score'])) < self.alpha:
+                    # If the score of a hypothesis is 'threshold/alpha' times
+                    # worse than best, prune it If it is > alpha, we do not add
+                    # it.
+                    if (best_score / (hyp.future_cost + hyp.trans['score'])) \
+                            < self.alpha:
                         bisect.insort(self.hyps, hyp)
-                        
                 except IndexError:
                         bisect.insort(self.hyps, hyp)
 

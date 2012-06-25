@@ -28,7 +28,7 @@ def get_trans_opts(hyp, tm, rm, lm):
     """Get all translation options a hypothesis could be expanded upon.
 
     hyp: the hypothesis to be expanded
-    
+
     tm, rm, lm: TranslationModel, ReorderingModel and SRILangModel,
     respectively
 
@@ -167,7 +167,8 @@ if __name__ == '__main__':
     tm.extract()
 
     fc_table = defaultdict(lambda: defaultdict(float))
-    empty_hypothesis = Hypothesis(None, None, 'pour le moment'.split(), fc_table)
+    empty_hypothesis = Hypothesis(
+            None, None, 'pour le moment'.split(), fc_table)
 
     _globals = {
         'lm': lm,
