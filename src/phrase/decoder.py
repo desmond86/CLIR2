@@ -14,8 +14,8 @@ Assignment 2. A Phrase-based translation model and decoder.
 >>> decoder = Decoder(all_file, e_file, f_file, a_file, max_stack_size)
 >>> decoder.process_models()
 >>> alpha = 1.0/2
->>> prune_type = "Histogram"
->>> decoder.decoder_test(f_file, 2, prune_type)
+>>> prune_type = "Threshold"
+>>> decoder.decoder_test(f_file, 2, prune_type, alpha)
 """
 
 from __future__ import division
