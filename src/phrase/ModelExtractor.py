@@ -157,11 +157,21 @@ class TranslationModel:
         self.prob_fe = self.prob_ef = self.prob_oef = defaultdict(lambda: defaultdict(float))
 
     def read_file(self, file_name):
+        """
+        This function is used for reading the input file into an array
+        and remove all the new line character
+        """
         f = open(file_name, 'r')
         lines = [line.strip() for line in f]
         return lines
 
     def format_alignment(self,input_alignments):
+        """
+        The output format from giza++ for word alignment is (word_f-word_e) meanwhile
+        in our project 1 code, we made a format (word_e, word_f). Therefore, in this
+        function we change the separator from '-' to ',' and the direction as well
+        to comply with our project 1 code
+        """
         list_alignments = []
 
         for iteration in input_alignments:
@@ -176,6 +186,18 @@ class TranslationModel:
         return list_alignments
 
     def extract(self):
+        """
+        This function will extract all of the phrases by calling
+        PhraseExtractor class and calculate the probability 
+        for an english phrase given a foreign phrase (and vice versa).
+        Each probability has been smoothed by utilizing log10.
+
+        In addition, we tried to implement the lexical reordering model.
+        We already made a function that will count the orientation (either
+        monotone, swap or discontinue) from each phrase pair. However it 
+        needs more detail information and time to connect it with 
+        the translation model
+        """
         #read all of the files
         list_sents_e = self.read_file(self.file_e)
         list_sents_f = self.read_file(self.file_f)
@@ -189,7 +211,6 @@ class TranslationModel:
         count_f = defaultdict(int)
    
         for i in range(len(list_sents_e)):
-#            print list_sents_e[i], list_sents_f[i], list_alignments[i]
             e = list_sents_e[i].split(" ")
             f = list_sents_f[i].split(" ")
             extractor = PhraseExtractor(e, f, list_alignments[i])
@@ -236,6 +257,9 @@ class TranslationModel:
         Monotone: if word alignment point to the top left exists
         Swap: if word alignment point to the top right exists
         Discontinue: if word alignment point to the neither top left nor top right
+
+        This function is not used in the current implementation due to the time constraint
+        and need more details from the book about how to connect it with the translation model
         """     
         #default orientation
         orientation = "m"
@@ -254,21 +278,28 @@ class TranslationModel:
 
 
     def get_translation_model_prob_f(self, word_f):
+        """
+        This function will read an english phrase and return a list of 
+        foreign phrase and its probability
+        """
+
         my_dict = {}
 
         for word_e in self.prob_fe[word_f]:
             my_dict[word_e] = self.prob_fe[word_f][word_e]
 
-        #for key, value in sorted(mydict.iteritems(), key=lambda (k,v): (v,k), reverse=True):
         return my_dict
 
     def get_translation_model_prob_e(self, word_e):
+        """
+        This function will read a foreign phrase and return a list of 
+        english phrase and its probability
+        """
         my_dict = {}
 
         for word_f in self.prob_ef[word_e]:
             my_dict[word_f] = self.prob_ef[word_e][word_f]
 
-        #for key, value in sorted(mydict.iteritems(), key=lambda (k,v): (v,k), reverse=True):
         return my_dict
 
 
