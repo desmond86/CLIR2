@@ -7,15 +7,16 @@
 Assignment 2. A Phrase-based translation model and decoder.
 
 >>> all_file = "source_files/all.lm"
->>> e_file = "source_files/all.lowercased.raw.en" 
->>> f_file = "source_files/all.lowercased.raw.fr"
+>>> e_file = "source_files/all.test.lowercased.raw.en"
+>>> f_file = "source_files/all.test.lowercased.raw.fr"
 >>> a_file = "source_files/aligned.grow-diag-final-and"
 >>> max_stack_size = 10
 >>> decoder = Decoder(all_file, e_file, f_file, a_file, max_stack_size)
 >>> decoder.process_models()
 >>> alpha = 1.0/2
 >>> prune_type = "Threshold"
->>> decoder.decoder_test(f_file, 2, prune_type, alpha)
+>>> sentences = 5
+>>> decoder.decoder_test(f_file, sentences, prune_type, alpha)
 
 Shortcomings and potential improvements:
     1. Three models are weighed the same (i.e. no weighting at all). Because
@@ -46,6 +47,57 @@ Shortcomings and potential improvements:
     cost of removing it is O(1).
 """
 
+# Performance Discussion:
+
+# There are two types of hypothesis pruning processes available: Histogram
+# pruning and Threshold pruning. Histogram pruning lets the stack of hypotheses
+# grow until it reaches a designated MAX_STACK_SIZE. This involves adding every
+# hypothesis to the stack and only removing items when it reaches a full state.
+# This process is expensive as it allows poor (expensive) hypotheses to be
+# added to the stack, those of which will never be used in an actual
+# translation. Removing an item is also expensive, because the 'worst'
+# translation - that is, Stack[0] is deleted. This means that, at worst,
+# MAX_STACK_SIZE-1 elements have to be shuffled 'down' despite the best case
+# scenario of only one element being removed.
+
+# The second type of pruning process available is the Threshold pruning
+# approach.  Instead of adding every hypothesis into the stack, it determines
+# the best (cheapest) costing hypothesis and determines whether or not new
+# hypotheses are 'alpha' times more expensive or worse than it. If it is, it is
+# never added to the stack, otherwise it is. This method is noticably more
+# efficient than the Histogram pruning approach, as poor/expensive hypotheses
+# are never added to the stack at all, therefore eliminating the need to delete
+# hypotheses and perform the expensive process of reording the stack elements.
+
+# Performance Results:
+
+# Test 1. Execute Histogram pruning on 5 sentences with a stack size of 10.
+# Result: 0m54.244s
+
+# Test 2. Execute Histogram pruning on 10 sentences with a stack size of 10.
+# Result: 1m59.734s
+
+# Test 3. Execute Histogram pruning on 20 sentences with a stack size of 5.
+# Result: 1m12.525s
+
+# Test 4. Execute Threshold pruning on 5 sentences with a stack size of 10.
+# Alpha = 0.5 Result: 0m3.301s
+
+# Test 5. Execute Threshold pruning on 10 sentences with a stack size of 10.
+# Alpha = 0.5 Result: 0m4.888s
+
+# Test 6. Execute Threshold pruning on 20 sentences with a stack size of 10.
+# Alpha = 0.5 Result: 0m7.634s
+
+# Test 7. Execute Threshold pruning on 20 sentences with a stack size of 5.
+# Alpha = 0.5 Result: 0m7.579s
+
+# From these tests it can be seen that there is a direct correlation between
+# the total duration of processing and the amount of sentences that are given
+# as input. Reducing the stack size lowers the processing time, albeit at the
+# risk of pruning an hypothesis that could eventually be the cheapest.
+
+
 from __future__ import division
 
 # custom modules
@@ -53,6 +105,7 @@ from ModelExtractor import *
 from ReorderingModel import ReorderingModel
 from datastructures import Hypothesis, Stack
 from utils import get_trans_opts
+
 
 class Decoder:
     """
@@ -79,7 +132,6 @@ class Decoder:
         self.tm = TranslationModel(self.english_file, self.foreign_file,
                                     self.alignment_file)
 
-
     def process_models(self):
         """
         Reads in the 'all' file for the language model and
@@ -87,7 +139,6 @@ class Decoder:
         """
         self.lm.read_lm_file(self.all_file)
         self.tm.extract()
-
 
     def get_tm_info(self, sent):
         """
@@ -129,12 +180,11 @@ class Decoder:
 
         return best_score
 
-
     def get_future_cost_table(self, sent):
         """
-        Used to get the future cost of processing words/phrases from
-        a given sentence. This takes into account the translation model's score.
-        A table is generated similar to koehn-06 page 171. Keys are the
+        Used to get the future cost of processing words/phrases from a given
+        sentence. This takes into account the translation model's score.  A
+        table is generated similar to koehn-06 page 171. Keys are the
         words/phrases, values are their corresponding future costs.
 
         Future cost ignores reordering model.
@@ -167,30 +217,28 @@ class Decoder:
 
         return fc_table
 
-
-    def decoder_test(self, foreign_file, n_sentences, prune_type, alpha=None):
+    def decoder_test(self, foreign_file, n_sentences, prune_type,
+            alpha=None):
         """
-        Used to get the future cost of processing words/phrases from
-        a given sentence. This takes into account the translation model's score.
-        A table is generated similar to koehn-06 page 171. Keys are the
-        words/phrases, values are their corresponding future costs.
-
-        Future cost ignores reordering model.
+        Test the decoder.
 
         Input: n_sentences - The number of sentences to parse from the
                foreign file
+               foreign_file - a file containing foreign sentences, one per line
+               prune_type: "Histogram" or "Threshold"
+               alpha: alpha for "Threshold" pruning
         Output: The corresponding English/Foreign sentences and its associated
                processing cost
 
         """
-        
+
         f = open(foreign_file, 'r')
         lines = []
-        [lines.append(line.split("\n")) for line in f.readlines()[:n_sentences]]
+        [lines.append(line.split("\n")) \
+                for line in f.readlines()[:n_sentences]]
 
         for i in range(len(lines)):
-      
-            print 'Translating phrase %d of %d\n.' % (i+1, len(lines))
+            print 'Translating phrase %d of %d\n.' % (i + 1, len(lines))
             input_sent = lines[i][0].split(' ')
             fc_table = self.get_future_cost_table(input_sent)
 
@@ -215,7 +263,6 @@ class Decoder:
 
             last_stack = stacks[-1]
             best_hyp = last_stack.best()
-            translation = best_hyp.trans['output']
 
             if best_hyp is not None:
                 print best_hyp.trans['input']

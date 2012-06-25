@@ -32,6 +32,17 @@ class SRILangModel:
         self.lm_dict = {}
     
     def read_lm_file(self, file_name):
+        """
+        This function will read an output file from SRILM and 
+        put it into dictionary. The value for the n-gram has already 
+        been smoothed using long 10. So we don't need to do any comversion.
+
+        For the time being we ignore the backoff-weights. We only focus on
+        the value on the first column
+
+        input: 
+        file_name: SRILM output file name
+        """
         f = open(file_name, 'r')
         sents = f.readlines()
 
@@ -41,6 +52,13 @@ class SRILangModel:
                 self.lm_dict[data[1]] = float(data[0])
 
     def get_language_model_prob(self, ngram):
+        """
+        This function will return a probablity score given a n-gram words.
+        input: 
+        ngram : word/phrase
+
+        output: probability score (using log10)
+        """
         if ngram in self.lm_dict:
             return self.lm_dict[ngram]
         else:
@@ -100,6 +118,15 @@ class PhraseExtractor:
         Modification:
         - I put a handling if the f_end equals to -1
         - I put another extra rule in the consistency check
+        
+        input:
+        f_start: start position of the foreign word 
+        f_end: end position of the foreign word 
+        e_start: start position of the english word 
+        e_end: end position of the english word 
+
+        output:
+        list of phrase pair
         """
         if f_end == -1:
             return []
@@ -260,6 +287,16 @@ class TranslationModel:
 
         This function is not used in the current implementation due to the time constraint
         and need more details from the book about how to connect it with the translation model
+
+        input:
+        f_start: start position of the foreign word 
+        f_end: end position of the foreign word 
+        e_start: start position of the english word 
+        e_end: end position of the english word 
+        list_alignment: list of word alignment for that sentence
+
+        output:
+        orientation ("m", "s", "d")
         """     
         #default orientation
         orientation = "m"
@@ -281,6 +318,12 @@ class TranslationModel:
         """
         This function will read an english phrase and return a list of 
         foreign phrase and its probability
+
+        input:
+        word_f: foreign word/phrase
+
+        output:
+        list of translation from word_f and its probability score
         """
 
         my_dict = {}
@@ -294,6 +337,12 @@ class TranslationModel:
         """
         This function will read a foreign phrase and return a list of 
         english phrase and its probability
+
+        input:
+        word_e: english word/phrase
+
+        output:
+        list of translation from word_e and its probability score
         """
         my_dict = {}
 
