@@ -26,9 +26,24 @@ def get_all_phrases(sentence):
 
 def get_trans_opts(hyp, tm, rm, lm):
     """Get all translation options a hypothesis could be expanded upon.
+
     hyp: the hypothesis to be expanded
+    
     tm, rm, lm: TranslationModel, ReorderingModel and SRILangModel,
     respectively
+
+    Return a generator of TranslationOption for hyp. Each TranslationOption is
+    weighted using the three models.
+
+    >>> import random
+    >>> trans_opts = list(get_trans_opts(empty_hypothesis, tm, rm, lm))
+    >>> random.seed(314159)
+    >>> random.shuffle(trans_opts)
+    >>> [(t.input_phrase, t.output_phrase) for t in trans_opts] \
+            # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+    [(['le'], 'the present'), \
+        (['le'], 'on the other'), \
+        (['pour', 'le'], 'for the'),...
     """
     untrans = get_untranslated_words(hyp)
 
@@ -38,6 +53,8 @@ def get_trans_opts(hyp, tm, rm, lm):
                 reordering_score = rm.score(hyp.trans['input'][-1], phrase)
             except IndexError:
                 reordering_score = 0.0
+            if reordering_score is None:
+                continue
             for translation in get_translations(phrase, tm):
                 try:
                     words = hyp.trans['output'][-1].split() + \
@@ -63,16 +80,12 @@ def get_untranslated_words(hyp):
     Returns a list of tuples in which second elements are untranslated words
     and first elements are positions of the words in input sentence.
 
-    >>> from datastructures import Hypothesis
-    >>> from collections import defaultdict
-    >>> fc_table = defaultdict(lambda: defaultdict(float))
-    >>> empty_hypothesis = Hypothesis(None, None, 'a b c'.split(), fc_table)
     >>> get_untranslated_words(empty_hypothesis)
-    [(0, 'a'), (1, 'b'), (2, 'c')]
-    >>> trans_opt = TranslationOption(1, 1, ['b'], '2', 0.0)
+    [(0, 'pour'), (1, 'le'), (2, 'moment')]
+    >>> trans_opt = TranslationOption(1, 1, ['le'], 'the', 0.0)
     >>> hypothesis = Hypothesis(empty_hypothesis, trans_opt)
     >>> get_untranslated_words(hypothesis)
-    [(0, 'a'), (2, 'c')]
+    [(0, 'pour'), (2, 'moment')]
     """
     input_sent = dict(enumerate(hyp.input_sent))
     for i in hyp.trans['input']:
@@ -84,6 +97,7 @@ def get_untranslated_words(hyp):
 
 def get_consecutive_parts(input_sent):
     """Get consecutive parts in a non-consecutive sentence.
+
     input_sent: input sentence given as a list of tuples in which second
     elements are untranslated words and first elements are positions of the
     words in input sentence.
@@ -117,7 +131,10 @@ def get_translations(phrase, tm):
     phrase: a phrase given as a list of tuples in which second elements are
     untranslated words and first elements are positions of the words in input
     sentence, e.g [(1, 'a'), (2,  'b'), (3, 'c'),]
+
     tm: a translation model
+
+    Return generator for phrase translation, elements are of TranslationOption
 
     >>> [t.output_phrase for t in get_translations(
     ... [(0, 'pour'), (1, 'le'), (2, 'moment')], tm)]
@@ -134,6 +151,9 @@ if __name__ == '__main__':
     import doctest
     from ModelExtractor import SRILangModel, TranslationModel
     from ReorderingModel import ReorderingModel
+    from datastructures import Hypothesis
+    from collections import defaultdict
+
     lm = SRILangModel()
     rm = ReorderingModel()
 
@@ -145,9 +165,14 @@ if __name__ == '__main__':
 
     tm = TranslationModel(english_file, foreign_file, alignment_file)
     tm.extract()
+
+    fc_table = defaultdict(lambda: defaultdict(float))
+    empty_hypothesis = Hypothesis(None, None, 'pour le moment'.split(), fc_table)
+
     _globals = {
         'lm': lm,
         'rm': rm,
         'tm': tm,
+        'empty_hypothesis': empty_hypothesis,
     }
     doctest.testmod(extraglobs=_globals)
