@@ -36,6 +36,26 @@ mais à vrai dire , dans quelles conditions a lieu ce débat et à quelles concl
 but let us stop to consider the circumstances in which this debate is taking place and the conclusions to which it should bring us
 -1309.47478189
 
+>>> prune_type = "Histogram"
+>>> decoder.decoder_test(f_file, sentences, prune_type)
+Translating phrase 1 of 5
+le rapport von wogau propose de renvoyer le contrôle de cette légitimité à l ' échelon national .
+the von wogau report
+-200.808846759
+Translating phrase 2 of 5
+Translating phrase 3 of 5
+nous demandons que la plus grande transparence soit de mise et qu ' un plus grand pouvoir d ' investigation soit donné à la commission pour vérifier a posteriori la légitimité de ces exceptions .
+we demand that the greatest possible transparency should be in place and that greater powers of investigation be granted to the
+-1590.44437266
+Translating phrase 4 of 5
+monsieur le président , nous débattons une fois de plus de la politique européenne de concurrence .
+mr president , once again we are debating the european union '
+-311.70700595
+Translating phrase 5 of 5
+mais à vrai dire , dans quelles conditions a lieu ce débat et à quelles conclusions devrions-nous aboutir ?
+but let us stop to consider the circumstances in which this debate
+-606.617232387
+
 Shortcomings and potential improvements:
     1. Three models are weighed the same (i.e. no weighting at all). Because
     the cost associated with each model is calculated differently, they could
@@ -283,7 +303,8 @@ class Decoder:
             best_hyp = last_stack.best()
 
             if best_hyp is not None:
-                print ' '.join([y for x in best_hyp.trans['input'] for y in x[2]])
+                print ' '.join([y for x in best_hyp.trans['input']
+                                    for y in x[2]])
                 print ' '.join(best_hyp.trans['output'])
                 print best_hyp.trans['score']
 
