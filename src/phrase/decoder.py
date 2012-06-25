@@ -16,6 +16,34 @@ Assignment 2. A Phrase-based translation model and decoder.
 >>> alpha = 1.0/2
 >>> prune_type = "Threshold"
 >>> decoder.decoder_test(f_file, 2, prune_type, alpha)
+
+Shortcomings and potential improvements:
+    1. Three models are weighed the same (i.e. no weighting at all). Because
+    the cost associated with each model is calculated differently, they could
+    affect the performance of the decoder significantly simply due to their
+    implementations. There should be some smart weighting method to balance
+    out their contributions.
+
+    2. Reordering cost is simply based on the distance. This will not scale
+    well when translation requires a lot of swapping.
+
+    3. In case of threshold pruning, there's no mechanism to control the stack
+    size, which makes the translation time unpredictable. There should be a
+    hybrid approach between histogram and threshold pruning to account for
+    this.
+
+    4. When a hypothesis is added, it has to be compare with every other
+    hypothesis to find out whether there's a combinable hypothesis, hence
+    complexity of O(N). We could add a index on large stack based on the
+    signature of hypotheses (input sequence, last input word, last output word)
+    to reduce search time to O(1).
+
+    5. Due to the implementation using bisect (Python's standard bisection
+    algorithm), stack's hypotheses are sorted in increasingly better scored
+    order (i.e. worst hypotheses are at the top), so when histogram pruning
+    happens, hypotheses[0] is removed and the stack has to shift (size - 1)
+    elements. It could be tweaked so that worst hypothesis is at the bottom and
+    cost of removing it is O(1).
 """
 
 from __future__ import division
