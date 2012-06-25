@@ -1,8 +1,11 @@
-# Authors:
-# Hai Dong Luong (573780) <hai-ld>
-# Desmond Putra () <dputra>
-# Andrew Vadnal (326558) <avadnal>
+"""
+Provides
 
+Authors:
+Hai Dong Luong (573780) <hai-ld>
+Desmond Putra (555802) <dputra>
+Andrew Vadnal (326558) <avadnal>
+"""
 
 from __future__ import division
 from collections import defaultdict
