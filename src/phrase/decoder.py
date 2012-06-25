@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Authors:
 # Hai Dong Luong (573780) <hai-ld>
 # Desmond Putra (555802) <dputra>
@@ -17,6 +18,23 @@ Assignment 2. A Phrase-based translation model and decoder.
 >>> prune_type = "Threshold"
 >>> sentences = 5
 >>> decoder.decoder_test(f_file, sentences, prune_type, alpha)
+Translating phrase 1 of 5
+le rapport von wogau propose de renvoyer le contrôle de cette légitimité à l ' échelon national .
+the von wogau report proposes referring supervision of
+-596.808846759
+Translating phrase 2 of 5
+Translating phrase 3 of 5
+nous demandons que la plus grande transparence soit de mise et qu ' un plus grand pouvoir d ' investigation soit donné à la commission pour vérifier a posteriori la légitimité de ces exceptions .
+we demand that the greatest possible transparency should be in place and that greater powers of investigation be granted to the commission in order to check the legitimacy of such exceptions after the fact
+-2391.51000566
+Translating phrase 4 of 5
+monsieur le président , nous débattons une fois de plus de la politique européenne de concurrence .
+mr president , once again we are debating the european union ' s competition
+-313.90218715
+Translating phrase 5 of 5
+mais à vrai dire , dans quelles conditions a lieu ce débat et à quelles conclusions devrions-nous aboutir ?
+but let us stop to consider the circumstances in which this debate is taking place and the conclusions to which it should bring us
+-1309.47478189
 
 Shortcomings and potential improvements:
     1. Three models are weighed the same (i.e. no weighting at all). Because
@@ -238,7 +256,7 @@ class Decoder:
                 for line in f.readlines()[:n_sentences]]
 
         for i in range(len(lines)):
-            print 'Translating phrase %d of %d\n.' % (i + 1, len(lines))
+            print 'Translating phrase %d of %d' % (i + 1, len(lines))
             input_sent = lines[i][0].split(' ')
             fc_table = self.get_future_cost_table(input_sent)
 
@@ -265,8 +283,8 @@ class Decoder:
             best_hyp = last_stack.best()
 
             if best_hyp is not None:
-                print best_hyp.trans['input']
-                print best_hyp.trans['output']
+                print ' '.join([y for x in best_hyp.trans['input'] for y in x[2]])
+                print ' '.join(best_hyp.trans['output'])
                 print best_hyp.trans['score']
 
 
